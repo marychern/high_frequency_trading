@@ -111,27 +111,13 @@ class Maker(LineReceiver):
     """
     return bo + S * sell_aggressiveness
 
-  def connectionMade(self):
+  def start_algorithm(self):
     msg = "" 
     if self.best_bid > MIN_BID:
       msg = str(self.build_Message('B'))
     if self.best_offer < MAX_ASK:
       msg = str(self.build_Message('S'))
-    
-    print("Message sent to broker printing..:\n")
-    print(msg)
-    print("Finished printing message to broker.\n")
-    self.transport.write(bytes((msg).encode()))
-
-  def lineReceived(self, line):
-    print("received from server:", line)
-
-  def dataReceived(self, data):
-    print("data received from server:", data.decode())
-    #BB2x3BO5x6
-    self.best_bid = 3
-    self.best_offer = 4
-    self.connectionMade_2()
+    return msg;
 
   def build_Message(self, Buy_or_Sell):
     if(Buy_or_Sell == 'S'):
