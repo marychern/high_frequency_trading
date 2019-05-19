@@ -7,6 +7,8 @@ import numpy as np
 import random as rand
 import math
 
+import exchange_factory1 
+
 class EpsilonTrader():
 
   def __init__(self, client, V = 100, lmbda=50, mean=0, std=0.2):
@@ -16,9 +18,12 @@ class EpsilonTrader():
     self.lmbda = lmbda
     self.mean = mean
     self.std = std
-
+    self.buyOrSell = exchange_factory1.BUY_OR_SELL
     waitingTime, priceEpsilon, buyOrSell = self.generateNextOrder()
     reactor.callLater(waitingTime, self.sendOrder, priceEpsilon, buyOrSell)
+
+  def set_buy_or_sell(self, buy_or_sell):
+    self.buyOrSell = buy_or_sell
 
   def set_underlying_value(self, V): 
     self.V = V 
@@ -26,22 +31,23 @@ class EpsilonTrader():
   def generateNextOrder(self):
     waitingTime = -(1/self.lmbda)*math.log(rand.random()/self.lmbda)
     priceEpsilon = 0.01
-    randomSeed = rand.random()
-    if (randomSeed > .5):
-      buyOrSell = b'B'
-    else:
-      buyOrSell = b'S'
+    buyOrSell = self.buyOrSell
     return waitingTime, priceEpsilon, buyOrSell
 
-  def sendOrder(self, priceEpsilon, buyOrSell):
-    if(buyOrSell == b'S'):
+  def sendOrder(self, priceEpsilon, useless_variable):
+    _shares = 5;
+    if(self.buyOrSell == b'S'):
+      print("\nSELL\n")
+      _shares = 5 - exchange_factory1.SELL_COUNT
       price = self.V + priceEpsilon
-    if(buyOrSell == b'B'):
+    if(self.buyOrSell == b'B'):
+      print("\nBUY\n")
+      _shares = 5 - exchange_factory1.BUY_COUNT
       price = self.V - priceEpsilon
 
     order = OuchClientMessages.EnterOrder(
       order_token='{:014d}'.format(0).encode('ascii'),
-      buy_sell_indicator=buyOrSell,
+      buy_sell_indicator=self.buyOrSell,
       shares=5,
       stock=b'AMAZGOOG',
       price=int(price * 10000),
@@ -55,6 +61,6 @@ class EpsilonTrader():
       customer_type=b' ')
     self.client.transport.write(bytes(order))
 
-    waitingTime, priceEpsilon, buyOrSell = self.generateNextOrder()
-    reactor.callLater(waitingTime, self.sendOrder, priceEpsilon, buyOrSell)
+    waitingTime, priceEpsilon, self.buyOrSell = self.generateNextOrder()
+    reactor.callLater(waitingTime, self.sendOrder, priceEpsilon, self.buyOrSell)
 

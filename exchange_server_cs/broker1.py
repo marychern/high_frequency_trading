@@ -2,7 +2,7 @@ from twisted.internet import reactor
 import time
 
 from clients_factory import ClientsFactory
-from exchange_factory import ExchangeFactory
+from exchange_factory1 import ExchangeFactory
 from underlying_value import UnderlyingValue
 
 #configure broker
@@ -27,7 +27,7 @@ class Broker():
     self.underlyingValueFeed = UnderlyingValue(self.time, self.clients)
 
   def data_recieved_from_exchange(self, data):
-    #print(data)
+    print("\ndata_recieved inside broker: \n",data)
     hello = None
 
   def time(self):

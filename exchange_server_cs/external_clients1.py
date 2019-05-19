@@ -24,10 +24,14 @@ class ExternalClient(Protocol):
 
   def dataReceived(self, data):
     # forward data to the trader, so they can handle it in different ways
+    print("\nDATA FROM EXTERNAL CLIENT: \n", data)
     ch = chr(data[0]).encode('ascii')
+    #buyOrSell = chr(data[17]).encode('ascii')
+    
     if (ch == b'@'):
       c, V = struct.unpack('cf', data)
       self.trader.set_underlying_value(V)
+    #if (data == b'B')
     else:
       print("unhandled message type")
 
