@@ -28,6 +28,12 @@ class Exchange(Protocol):
       print("\nDecode: \n",st2.decode('ascii'))
       if msg_type == b'A':
         #print('accepted: ', msg)
+        if(msg.find("ask")):
+          SELL_COUNT += 1
+          if(SELL_COUNT >= 5 and BUY_COUNT < 5): BUY_OR_SELL = b'B' 
+        elif(msg.find("bid")):
+          BUY_COUNT += 1
+          if(BUY_COUNT >= 5 and SELL_COUNT < 5): BUY_OR_SELL = b'B' 
         self.factory.graph.plot_accepted_order(msg)
 
       elif msg_type == b'E':
@@ -47,12 +53,20 @@ class Exchange(Protocol):
         #self.factory.graph.plot_cancelled_order(msg)
         if(msg.find("ask")):
           BUY_OR_SELL = b'S'
+          SELL_COUNT -= 1
         elif(msg.find("bid")):
           BUY_OR_SELL = b'B'
+          BUY_COUNT -= 1
         hello = 0
 
       elif msg_type == b'Q':
         #print('BBBO: ', msg)
+        if(msg.find("ask")):
+          BUY_OR_SELL = b'S'
+          SELL_COUNT -= 1
+        elif(msg.find("bid")):
+          BUY_OR_SELL = b'B'
+          BUY_COUNT -= 1
         self.factory.graph.plot_bbbo(msg)
       
       else:

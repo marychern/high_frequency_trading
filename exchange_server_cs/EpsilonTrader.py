@@ -35,20 +35,20 @@ class EpsilonTrader():
     return waitingTime, priceEpsilon, buyOrSell
 
   def sendOrder(self, priceEpsilon, useless_variable):
-    _shares = 5;
+    #_shares = 5;
     if(self.buyOrSell == b'S'):
       print("\nSELL\n")
-      _shares = 5 - exchange_factory1.SELL_COUNT
+     # _shares = 5 - exchange_factory1.SELL_COUNT
       price = self.V + priceEpsilon
     if(self.buyOrSell == b'B'):
       print("\nBUY\n")
-      _shares = 5 - exchange_factory1.BUY_COUNT
+      #_shares = 5 - exchange_factory1.BUY_COUNT
       price = self.V - priceEpsilon
 
     order = OuchClientMessages.EnterOrder(
       order_token='{:014d}'.format(0).encode('ascii'),
       buy_sell_indicator=self.buyOrSell,
-      shares=5,
+      shares=1,
       stock=b'AMAZGOOG',
       price=int(price * 10000),
       time_in_force=4,
