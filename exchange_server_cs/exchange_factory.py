@@ -32,7 +32,8 @@ class Exchange(Protocol):
 			elif msg_type == b'Q':
 				#print('BBBO: ', msg)
 				self.factory.graph.plot_bbbo(msg)
-			
+			elif msg_type == b'S':
+				print('System Event: ', msg)
 			else:
 				print('?: ', msg_type)
 		except:

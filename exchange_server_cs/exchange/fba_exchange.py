@@ -37,6 +37,7 @@ class FBAExchange(Exchange):
                     event_code=b'P',
                     timestamp=nanoseconds_since_midnight()))
             await self.send_outgoing_messages()
-            self.order_book_logger.log_book(self.order_book, timestamp, self.order_store)
+            if self.order_book_logger is not None:
+                self.order_book_logger.log_book(self.order_book, timestamp, self.order_store)
             log.debug('Ended batch at %s', self.loop.time())
             await asyncio.sleep(self.interval - (self.loop.time() % self.interval))
