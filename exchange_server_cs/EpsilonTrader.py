@@ -12,8 +12,12 @@ import exchange_factory1
 class EpsilonTrader():
 
   def __init__(self, client, V = 100, lmbda=50, mean=0, std=0.2):
+    self.order_type = "Enter"
+    self.isVchanged = False
+    self.shares = 1
     self.client = client
-
+    self.first_run = True
+    self.second_run = False
     self.V = V
     self.lmbda = lmbda
     self.mean = mean
@@ -26,12 +30,32 @@ class EpsilonTrader():
     self.buyOrSell = buy_or_sell
 
   def set_underlying_value(self, V): 
+    if(self.V != V):
+      self.isVchanged = True
+      self.first_run = True
     self.V = V 
 
   def generateNextOrder(self):
-    waitingTime = -(1/self.lmbda)*math.log(rand.random()/self.lmbda)
+    
+    #if(self.isVchanged == True):
+    #  #cancel all orders
+      
+   # if(self.first_run == True):
+   #   self.first_run = False
+   #   self.second_run = True
+   #   self.buyOrSell = b'S'
+   #   self.shares = 1000
+   # elif(self.second_run == True):
+   #   self.first_run = False
+   #   self.second_run = False
+   #   self.buyOrSell = b'B'
+   #   self.shares = 1000
+   # else:
+   #   self.shares = 1000
     priceEpsilon = 0.01
     buyOrSell = self.buyOrSell
+
+    waitingTime = -(1/self.lmbda)*math.log(rand.random()/self.lmbda)
     return waitingTime, priceEpsilon, buyOrSell
 
   def sendOrder(self, priceEpsilon, useless_variable):
@@ -48,7 +72,7 @@ class EpsilonTrader():
     order = OuchClientMessages.EnterOrder(
       order_token='{:014d}'.format(0).encode('ascii'),
       buy_sell_indicator=self.buyOrSell,
-      shares=1,
+      shares=self.shares,
       stock=b'AMAZGOOG',
       price=int(price * 10000),
       time_in_force=4,

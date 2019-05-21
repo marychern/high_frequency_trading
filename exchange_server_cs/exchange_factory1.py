@@ -15,64 +15,135 @@ class Exchange(Protocol):
     self.factory.broker.exchange = self
     print("Exchange Connected")
     
-  def dataReceived(self, data):
-    print("\nIN DATARECIEVED FROM EXCHANGE_FACTORY\n")
-    try:
-      msg_type, msg = decodeServerOUCH(data) 
-      print("\nMSG_TYPE: \n",msg_type)
-      print("\nMSG: \n", msg)
-      st1 = msg
-      st2 = msg
-      print("\nEncoding and Decoding below: \n")
-      print("\nEncoding: \n",st1.encode('ascii'))
-      print("\nDecode: \n",st2.decode('ascii'))
-      if msg_type == b'A':
-        #print('accepted: ', msg)
-        if(msg.find("ask")):
-          SELL_COUNT += 1
-          if(SELL_COUNT >= 5 and BUY_COUNT < 5): BUY_OR_SELL = b'B' 
-        elif(msg.find("bid")):
-          BUY_COUNT += 1
-          if(BUY_COUNT >= 5 and SELL_COUNT < 5): BUY_OR_SELL = b'B' 
-        self.factory.graph.plot_accepted_order(msg)
+  def update_global_vars(msg, msg_type):
+    if msg_type == b'A':
+      print("\nINSIDE ACCEPT\n")
+      #print('accepted: ', msg)
+      if(msg.find("ask")):
+        print("\nASK INSIDE OF ACCEPT\n")
+        SELL_COUNT += 1
+        if(SELL_COUNT >= 5 and BUY_COUNT < 5): BUY_OR_SELL = b'B' 
+      elif(msg.find("bid")):
+        print("\nBID INSIDE OF ACCEPT\n")
+        BUY_COUNT += 1
+        if(BUY_COUNT >= 5 and SELL_COUNT < 5): BUY_OR_SELL = b'B' 
 
-      elif msg_type == b'E':
-        print('executed: ', msg)
-        if(msg.find("ask")):
-          BUY_OR_SELL = b'S'
-          SELL_COUNT -= 1 
-        elif(msg.find("bid")):
-          BUY_OR_SELL = b'B'
-          BUY_COUNT -= 1
-        self.factory.graph.plot_executed_order(msg)
+    elif msg_type == b'E':
+      print("\nINSIDE EXECUTE\n")
+      #print('executed: ', msg)
+      if(msg.find("ask")):
+        print("\nASK INSIDE OF EXECUTE\n")
+        BUY_OR_SELL = b'S'
+        SELL_COUNT -= 1 
+      elif(msg.find("bid")):
+        print("\nBID INSIDE OF EXECUTE\n")
+        BUY_OR_SELL = b'B'
+        BUY_COUNT -= 1
 
       # currently ignores cancelled, because these are 
       # just orders that ran out of time and no one matched
-      elif msg_type == b'C':
-        #print('cancelled: ', msg)
-        #self.factory.graph.plot_cancelled_order(msg)
-        if(msg.find("ask")):
-          BUY_OR_SELL = b'S'
-          SELL_COUNT -= 1
-        elif(msg.find("bid")):
-          BUY_OR_SELL = b'B'
-          BUY_COUNT -= 1
-        hello = 0
+    elif msg_type == b'C':
+      print("\nINSIDE CANCEL\n")
+      #print('cancelled: ', msg)
+      #self.factory.graph.plot_cancelled_order(msg)
+      if(msg.find("ask")):
+        print("\nASK INSIDE OF CANCEL\n")
+        BUY_OR_SELL = b'S'
+        SELL_COUNT -= 1
+      elif(msg.find("bid")):
+        print("\nBID INSIDE OF CANCEL\n")
+        BUY_OR_SELL = b'B'
+        BUY_COUNT -= 1
 
-      elif msg_type == b'Q':
-        #print('BBBO: ', msg)
-        if(msg.find("ask")):
-          BUY_OR_SELL = b'S'
-          SELL_COUNT -= 1
-        elif(msg.find("bid")):
-          BUY_OR_SELL = b'B'
-          BUY_COUNT -= 1
-        self.factory.graph.plot_bbbo(msg)
-      
-      else:
-        print('?: ', msg_type)
-    except:
-      print('EXCEPTION: message type', data)
+    elif msg_type == b'Q':
+      print("\nINSIDE Q\n")
+      #print('BBBO: ', msg)
+      if(msg.find("ask")):
+        print("\nASK INSIDE OF Q\n")
+        BUY_OR_SELL = b'S'
+        SELL_COUNT -= 1
+      elif(msg.find("bid")):
+        print("\nBID INSIDE OF Q\n")
+        BUY_OR_SELL = b'B'
+        BUY_COUNT -= 1
+     
+    else:
+      print('?: ', msg_type)
+   
+  def plot_messages(msg, msg_type):
+    if msg_type == b'A':
+      print("\nINSIDE ACCEPT\n")
+      #print('accepted: ', msg)
+      if(msg.find("ask")):
+        print("\nASK INSIDE OF ACCEPT\n")
+        SELL_COUNT += 1
+        if(SELL_COUNT >= 5 and BUY_COUNT < 5): BUY_OR_SELL = b'B' 
+      elif(msg.find("bid")):
+        print("\nBID INSIDE OF ACCEPT\n")
+        BUY_COUNT += 1
+        if(BUY_COUNT >= 5 and SELL_COUNT < 5): BUY_OR_SELL = b'B' 
+      self.factory.graph.plot_accepted_order(msg)
+
+    elif msg_type == b'E':
+      print("\nINSIDE EXECUTE\n")
+      #print('executed: ', msg)
+      if(msg.find("ask")):
+        print("\nASK INSIDE OF EXECUTE\n")
+        BUY_OR_SELL = b'S'
+        SELL_COUNT -= 1 
+      elif(msg.find("bid")):
+        print("\nBID INSIDE OF EXECUTE\n")
+        BUY_OR_SELL = b'B'
+        BUY_COUNT -= 1
+      self.factory.graph.plot_executed_order(msg)
+
+      # currently ignores cancelled, because these are 
+      # just orders that ran out of time and no one matched
+    elif msg_type == b'C':
+      print("\nINSIDE CAMCEL\n")
+      #print('cancelled: ', msg)
+      #self.factory.graph.plot_cancelled_order(msg)
+      if(msg.find("ask")):
+        print("\nASK INSIDE OF CANCEL\n")
+        BUY_OR_SELL = b'S'
+        SELL_COUNT -= 1
+      elif(msg.find("bid")):
+        print("\nBID INSIDE OF CANCEL\n")
+        BUY_OR_SELL = b'B'
+        BUY_COUNT -= 1
+      hello = 0
+
+    elif msg_type == b'Q':
+      print("\nINSIDE Q\n")
+      #print('BBBO: ', msg)
+      if(msg.find("ask")):
+        print("\nASK INSIDE OF Q\n")
+        BUY_OR_SELL = b'S'
+        SELL_COUNT -= 1
+      elif(msg.find("bid")):
+        print("\nBID INSIDE OF Q\n")
+        BUY_OR_SELL = b'B'
+        BUY_COUNT -= 1
+      self.factory.graph.plot_bbbo(msg)
+     
+    else:
+      print('?: ', msg_type)
+   
+  
+  def dataReceived(self, data):
+    print("\nIN DATARECIEVED FROM EXCHANGE_FACTORY\n")
+    isPlot = True
+    #try:
+    msg_type, msg = decodeServerOUCH(data) 
+    print("\nMSG_TYPE: \n",msg_type)
+    print("\nMSG: \n", msg)
+    update_global_vars(msg, msg_type)
+      #plot_messages(msg, msg_type)
+    #except:
+     # print('EXCEPTION: message type', data)
+      #update_global_vars(msg, msg_type)
+   # except:
+   # print('EXCEPTION: message type', data)
 
       
 # handles all data collection and graphing
