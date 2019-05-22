@@ -7,36 +7,59 @@ import numpy as np
 
 
 class Exchange(Protocol):
+	bytes_needed = {
+		'S': 10,
+		'E': 40,
+		'C': 28,
+		'U': 80,
+		'A': 66,
+		'Q': 33,
+	}
 	def connectionMade(self):
 		self.factory.broker.exchange = self
 		print("exchange connected")
 
 	def dataReceived(self, data):
-		try:
-			msg_type, msg = decodeServerOUCH(data) 
-			if msg_type == b'A':
-				#print('accepted: ', msg)
-				self.factory.graph.plot_accepted_order(msg)
 
-			elif msg_type == b'E':
-				#print('executed: ', msg)
-				self.factory.graph.plot_executed_order(msg)
+		# header = chr(data[0])
+		# more_data = None
+		# try:
+		# 	bytes_needed = self.bytes_needed[header]
+		# except KeyError:
+		# 	raise ValueError('unknown header %s.' % header)
+		#
+		# if len(data) >= bytes_needed:
+		# 	remainder = bytes_needed
+		# 	more_data = data[remainder:]
+		# 	data = data[:bytes_needed]
 
-			# currently ignores cancelled, because these are 
+
+		msg_type, msg = decodeServerOUCH(data)
+		if msg_type == b'A':
+			#print('accepted: ', msg)
+			self.factory.graph.plot_accepted_order(msg)
+
+		elif msg_type == b'E':
+			#print('executed: ', msg)
+			self.factory.graph.plot_executed_order(msg)
+
+			# currently ignores cancelled, because these are
 			# just orders that ran out of time and no one matched
-			elif msg_type == b'C':
-				#print('cancelled: ', msg)
-				#self.factory.graph.plot_cancelled_order(msg)
-				hello = 0
+		elif msg_type == b'C':
+			#print('cancelled: ', msg)
+			#self.factory.graph.plot_cancelled_order(msg)
+			hello = 0
 
-			elif msg_type == b'Q':
-				#print('BBBO: ', msg)
-				self.factory.graph.plot_bbbo(msg)
-			
-			else:
-				print('?: ', msg_type)
-		except:
-			print('EXCEPTION: message type', data)
+		elif msg_type == b'Q':
+			#print('BBBO: ', msg)
+			self.factory.graph.plot_bbbo(msg)
+
+		else:
+			print('?: ', msg_type)
+
+		# if len(more_data):
+		# 	self.dataReceived(more_data)
+
 
 
 # handles all data collection and graphing
