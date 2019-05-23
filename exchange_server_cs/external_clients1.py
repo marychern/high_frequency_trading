@@ -42,6 +42,7 @@ def main():
     externalClientFactory = ClientFactory()
     externalClientFactory.protocol = ExternalClient
     reactor.connectTCP("localhost", 8001, externalClientFactory)
+    reactor.callLater(120, reactor.stop)
     reactor.run()
 
 if __name__ == '__main__':
