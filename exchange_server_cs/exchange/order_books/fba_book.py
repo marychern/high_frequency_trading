@@ -100,7 +100,7 @@ class FBABook:
             else:
                 amount_canceled = 0
 
-            return [(id, amount_canceled)]
+            return [(id, amount_canceled), None]
 
     def enter_buy(self, id, price, volume, enter_into_book = True):
         '''

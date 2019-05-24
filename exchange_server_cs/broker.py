@@ -40,7 +40,7 @@ def main():
 	reactor.listenTCP(8000, ClientsFactory(broker))
 	reactor.connectTCP("localhost", 9001, ExchangeFactory(broker))
 
-	reactor.callLater(20, reactor.stop)
+	reactor.callLater(120, reactor.stop)
 	reactor.run()
 
 if __name__ == '__main__':
