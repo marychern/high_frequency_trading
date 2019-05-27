@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import time
 from collections import OrderedDict 
 import numpy as np
+import pickle
+from message_handler import decodeServerOUCH, decodeClientOUCH
 
 
 class Exchange(Protocol):
@@ -17,6 +19,7 @@ class Exchange(Protocol):
 			if msg_type == b'A':
 				#print('accepted: ', msg)
 				self.factory.graph.plot_accepted_order(msg)
+				self.factory.broker.return_to_client(data)
 
 			elif msg_type == b'E':
 				#print('executed: ', msg)
@@ -32,7 +35,8 @@ class Exchange(Protocol):
 			elif msg_type == b'Q':
 				#print('BBBO: ', msg)
 				self.factory.graph.plot_bbbo(msg)
-			
+			elif msg_type == b'S':
+				print('System Event: ', msg)
 			else:
 				print('?: ', msg_type)
 		except:
@@ -119,10 +123,13 @@ class ExchangeGrapher():
 			self.boData[timestamp] = np.nan
 
 	def graph_results(self):
-		plt.hlines(self.buyPriceAxis, self.buyStartTime, self.buyEndTime.values(), color ="red", linewidth=0.5)
-		plt.hlines(self.sellPriceAxis, self.sellStartTime, self.sellEndTime.values(), color ="blue", linewidth=0.5)
+		plt.hlines(self.buyPriceAxis, self.buyStartTime, self.buyEndTime.values(), color ="red", linewidth=0.5, label="Bid")
+		plt.hlines(self.sellPriceAxis, self.sellStartTime, self.sellEndTime.values(), color ="blue", linewidth=0.5, label="Offer")
 
-		plt.scatter(self.crossTime, self.crossPrice, s=7, linewidth=1, marker = "x")
+		plt.scatter(self.crossTime, self.crossPrice, s=7, linewidth=1, marker = "x", label="Order Execution")
+		pickle.dump(self.crossTime, open("crossTime.pickle", "wb"))
+		pickle.dump(self.crossPrice, open("crossPrice.pickle", "wb"))
+
 
 	def graph_results_bbo(self):
 		# list manipulation to make the graphical points
@@ -134,8 +141,8 @@ class ExchangeGrapher():
 		boTime = [key for (key, value) in bo for i in range(2)]
 		boPrice = [value for (key, value) in bo for i in range(2)]
 
-		plt.plot(bbTime[3:-1], bbPrice[2:-2], linewidth=.7, color="red")
-		plt.plot(boTime[3:-1], boPrice[2:-2], linewidth=.7, color="blue")
+		plt.plot(bbTime[3:-1], bbPrice[2:-2], linewidth=.7, color="red", label="Best Bid")
+		plt.plot(boTime[3:-1], boPrice[2:-2], linewidth=.7, color="blue", label="Best Offer")
 
 	def time(self, time):
 		return time - self.initial_time
@@ -149,9 +156,15 @@ class ExchangeFactory(ClientFactory):
 
 	def stopFactory(self):
 		self.graph.graph_results()
-		plt.title("Market Activity")
-		plt.show()
+		plt.title("Exchange and Order Executions (FBA)")
+		plt.xlabel('Time')
+		plt.ylabel('Price')
+		plt.legend()
+		#plt.show()
 
 		self.graph.graph_results_bbo()
-		plt.title("BBBO Activity")
-		plt.show()
+		plt.title("BBBO Activity (CDA)")
+		plt.xlabel('Time')
+		plt.ylabel('Price')
+		plt.legend()
+		#plt.show()

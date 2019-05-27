@@ -6,14 +6,6 @@ import struct
 import numpy as np
 import random as rand
 import math
-<<<<<<< HEAD
-import time
-
-#Traders
-import RandomTrader
-import MakerTrader
-import EpsilonTrader
-=======
 from message_handler import decodeServerOUCH, decodeClientOUCH
 
 """
@@ -23,42 +15,24 @@ if we want $100.30, this is represented as 10030
 """
 
 class RandomTrader():
-	def __init__(self, client, V = 100, lmbda=50, mean=0, std=0.6):
+	def __init__(self, client):
 		rand.seed(1)
 		np.random.seed(2)
 		self.client = client
 
-		self.V = V
-		self.lmbda = lmbda
-		self.mean = mean
-		self.std = std
+		# send a template order every second
+		# note: have to use callLater, because of async issues
+		# if first parameter is 0, wait 0 seconds to send order
+		reactor.callLater(0, self.sendOrder)
 
-		waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
-		reactor.callLater(waitingTime, self.sendOrder, priceDelta, buyOrSell)
-
-
-	def set_underlying_value(self, V):
-		self.V = V
-
-	def generateNextOrder(self):
-		waitingTime = -(1/self.lmbda)*math.log(rand.random()/self.lmbda)
-		priceDelta = np.random.normal(self.mean, self.std)
-		randomSeed = rand.random()
-
-		if (randomSeed > .5):
-			buyOrSell = b'B'
-		else:
-			buyOrSell = b'S'
-		return waitingTime, priceDelta, buyOrSell
-
-	def sendOrder(self, priceDelta, buyOrSell):
-		price = self.V + priceDelta
+	# TODO: need to customize the information to send to exchange
+	def sendOrder(self):
 		order = OuchClientMessages.EnterOrder(
 			order_token='{:014d}'.format(0).encode('ascii'),
-			buy_sell_indicator=buyOrSell,
+			buy_sell_indicator=b'B',
 			shares=1,
 			stock=b'AMAZGOOG',
-			price=int(price * 10000),
+			price=10,
 			time_in_force=4,
 			firm=b'OUCH',
 			display=b'N',
@@ -68,45 +42,29 @@ class RandomTrader():
 			cross_type=b'N',
 			customer_type=b' ')
 		self.client.transport.write(bytes(order))
+		# remove if you dont want infinite loop
+		reactor.callLater(1, self.sendOrder)
 
-		waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
-		reactor.callLater(waitingTime, self.sendOrder, priceDelta, buyOrSell)
->>>>>>> 91583a3036c7f1dbd95defb6ea2b6ac9221e534a
 
 	def handle_underlying_value(self, data):
 		c, V = struct.unpack('cf', data)
-		self.set_underlying_value(V)
+		#print("Underlying Value Change: ", V)
 
 	def handle_accepted_order(self, msg):
 		print("Accept Message from Exchange: ", msg)
+		# TODO: if order accepted... do something
 
 	def handle_executed_order(self, msg):
 		print("Executed Message from Exchange: ", msg)
+		# TODO: if order executed... do something
+
 
 	def handle_cancelled_order(self, msg):
 		print("Cancelled Message: ", msg)
+		# TODO: if order cancelled... do something
+
 
 class ExternalClient(Protocol):
-<<<<<<< HEAD
-  def __init__(self):
-    #specify trader
-    #self.trader = MakerTrader.MakerTrader(self)
-    self.trader = RandomTrader.RandomTrader(self)
-    #self.trader = EpsilonTrader.EpsilonTrader(self)
-
-  def connectionMade(self):
-    print("client connected")
-
-  def dataReceived(self, data):
-    # forward data to the trader, so they can handle it in different ways
-    time.sleep(0.3)
-    ch = chr(data[0]).encode('ascii')
-    if (ch == b'@'):
-      c, V = struct.unpack('cf', data)
-      self.trader.set_underlying_value(V)
-    else:
-      print("unhandled message type")
-=======
 	def __init__(self, trader_class):
 		self.trader = trader_class(self)
 
@@ -130,26 +88,17 @@ class ExternalClient(Protocol):
 				self.trader.handle_cancelled_order(msg)
 			else:
 				print("unhandled message type: ", data)
->>>>>>> 91583a3036c7f1dbd95defb6ea2b6ac9221e534a
 
 # -----------------------
 # Main function
 # -----------------------
 def main():
-<<<<<<< HEAD
-    externalClientFactory = ClientFactory()
-    externalClientFactory.protocol = ExternalClient
-    reactor.connectTCP("localhost", 8000, externalClientFactory)
-    reactor.callLater(120, reactor.stop)
-    reactor.run()
-=======
 	externalClientFactory = ClientFactory()
 	def externalClient():
 		return ExternalClient(RandomTrader)
 	externalClientFactory.protocol = externalClient
 	reactor.connectTCP("localhost", 8000, externalClientFactory)
 	reactor.run()
->>>>>>> 91583a3036c7f1dbd95defb6ea2b6ac9221e534a
 
 if __name__ == '__main__':
     main()
