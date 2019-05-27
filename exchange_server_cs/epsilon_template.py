@@ -22,10 +22,10 @@ class RandomTrader():
 
 		# send a template order every second
 		# note: have to use callLater, because of async issues
-		
-		reactor.callLater(1, self.sendOrder)
+		# if first parameter is 0, wait 0 seconds to send order
+		reactor.callLater(0, self.sendOrder)
 
-
+	# TODO: need to customize the information to send to exchange
 	def sendOrder(self):
 		order = OuchClientMessages.EnterOrder(
 			order_token='{:014d}'.format(0).encode('ascii'),
@@ -42,7 +42,7 @@ class RandomTrader():
 			cross_type=b'N',
 			customer_type=b' ')
 		self.client.transport.write(bytes(order))
-
+		# remove if you dont want infinite loop
 		reactor.callLater(1, self.sendOrder)
 
 
@@ -52,12 +52,17 @@ class RandomTrader():
 
 	def handle_accepted_order(self, msg):
 		print("Accept Message from Exchange: ", msg)
+		# TODO: if order accepted... do something
 
 	def handle_executed_order(self, msg):
 		print("Executed Message from Exchange: ", msg)
+		# TODO: if order executed... do something
+
 
 	def handle_cancelled_order(self, msg):
 		print("Cancelled Message: ", msg)
+		# TODO: if order cancelled... do something
+
 
 class ExternalClient(Protocol):
 	def __init__(self, trader_class):
