@@ -100,7 +100,7 @@ class FBABook:
             else:
                 amount_canceled = 0
 
-            return [(id, amount_canceled)]
+            return [(id, amount_canceled), None]
 
     def enter_buy(self, id, price, volume, enter_into_book = True):
         '''
@@ -109,9 +109,9 @@ class FBABook:
         if enter_into_book:
             self.bids[price].add_order(id, volume)
             entered_order = (id, price, volume)
-            return ([], entered_order)
+            return ([], entered_order, None)
         else:
-            return ([], None)
+            return ([], None, None)
 
     def enter_sell(self, id, price, volume, enter_into_book):
         '''
@@ -120,9 +120,9 @@ class FBABook:
         if enter_into_book:
             self.asks[price].add_order(id, volume)
             entered_order = (id, price, volume)
-            return ([], entered_order) 
+            return ([], entered_order, None) 
         else:
-            return ([], None)
+            return ([], None, None)
 
     def batch_process(self):
         log.debug('Running batch auction..')

@@ -8,6 +8,7 @@ from struct import *
 from message_handler import decodeServerOUCH, decodeClientOUCH
 import time
 import csv
+import pickle
 """
 ===== Underlying Value Feed =====
 
@@ -21,6 +22,8 @@ Note: All underlying value broadcasts will start with: @
 """
 class UnderlyingValue():
     def __init__(self, time, clients, V=100, lmbda=1, mean=0, std=.5):
+        rand.seed(3)
+        np.random.seed(4)
         # keep track of subscribers
         self.time = time
         self.clients = clients
@@ -73,8 +76,11 @@ class UnderlyingValue():
     # called after the factory ends
     def graph_results(self, end_time):
         self.timeAxis.append(end_time)
-        plt.hlines(self.valueAxis, self.timeAxis[:-1], self.timeAxis[1:], linewidth=1)
+        plt.hlines(self.valueAxis[:-1], self.timeAxis[:-2], self.timeAxis[1:], linewidth=1, label="Fundamental Value")
         plt.vlines(self.timeAxis[1:-1], self.valueAxis, self.valueAxis[1:], linewidth=1)
+
+        pickle.dump(self.timeAxis, open("timeAxis.pickle", "wb"))
+        pickle.dump(self.valueAxis, open("valueAxix.pickle", "wb"))
 
         # dump to csv file
         with open('data_points.csv', mode='a') as data_file:

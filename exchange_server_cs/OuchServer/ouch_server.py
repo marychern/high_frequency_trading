@@ -54,7 +54,6 @@ class ProtocolMessageServer(object):
         # start a new Task to handle this specific client connection
         client_token = next(self._tokens)
         task = asyncio.Task(self._handle_client_requests(client_token, client_reader))
-        
         log.info('client task %s created: %s', str(client_token), task)
         self.clients[client_token] = self.ClientInfo(task, client_reader, client_writer)
 
@@ -88,9 +87,10 @@ class ProtocolMessageServer(object):
                 break
 
             client_msg = message_type.from_bytes(payload_bytes, header=False)
-            client_msg.meta = client_token
+            client_msg.meta = client_token                
+
             await self.broadcast_to_listeners(client_msg)
-            
+
     async def send_server_response(self, server_msg):
         client_token = server_msg.meta
         try:

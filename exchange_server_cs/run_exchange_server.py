@@ -1,6 +1,7 @@
 import sys
 import asyncio
 import configargparse
+from argparse import Namespace
 import logging as log
 from functools import partial
 from OuchServer.ouch_server import ProtocolMessageServer
@@ -10,6 +11,7 @@ from exchange.order_books.fba_book import FBABook
 from exchange.exchange import Exchange
 from exchange.fba_exchange import FBAExchange
 from exchange.order_books.book_logging import BookLogger
+
 
 p = configargparse.getArgParser()
 p.add('--port', default=12345)

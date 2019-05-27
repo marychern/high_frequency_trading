@@ -24,13 +24,13 @@ class RandomTraderClient(Protocol):
         self.i = 0
         self.line_count = 0
 
-    def connectionMade(self):
+    def connectionMade(self, latency = 0.3):
         t = 0
         self.readCSVorder()
         for x in range(1,58):
             # if t==0:
             # send order every 4 sec
-            reactor.callLater(t, self.sendCSVorder)
+            reactor.callLater(t+latency, self.sendCSVorder)
             t += 4
             # else:
             #     reactor.callLater(t, self.sendCSVorder)
