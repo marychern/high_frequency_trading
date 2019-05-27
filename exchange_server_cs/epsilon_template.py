@@ -66,8 +66,8 @@ class EpsilonTrader():
       customer_type=b' ')
     self.client.transport.write(bytes(order))
     # remove if you dont want infinite loop
-    # reactor.callLater(1, self.sendOrder)
     waitingTime, Epsilon, self.buy_or_sell = self.generateNextOrder()
+    #reactor.callLater(1, self.sendOrder)
     reactor.callLater(waitingTime, self.sendOrder, Epsilon, self.buy_or_sell)
 
   def handle_underlying_value(self, data):
