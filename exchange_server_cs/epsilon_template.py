@@ -14,91 +14,141 @@ The OUCH message expects price to be an integer. We think this means
 if we want $100.30, this is represented as 10030
 """
 
-class RandomTrader():
-	def __init__(self, client):
-		rand.seed(1)
-		np.random.seed(2)
-		self.client = client
+class EpsilonTrader():
+  def __init__(self, client, V=100, lmbda = 50):
+    rand.seed(1)
+    np.random.seed(2)
+    self.client = client
+    self.V = V
+    self.lmbda = lmbda
+    self.buy_or_sell = b'B'
+    self.ask_count = 0
+    self.bid_count = 0
+    # send a template order every second
+    # note: have to use callLater, because of async issues
+    # if first parameter is 0, wait 0 seconds to send order
+    waitingTime, Epsilon, BuyOrSell = self.generateNextOrder()
+    reactor.callLater(waitingTime ,self.sendOrder, Epsilon, BuyOrSell)
 
-		# send a template order every second
-		# note: have to use callLater, because of async issues
-		# if first parameter is 0, wait 0 seconds to send order
-		reactor.callLater(0, self.sendOrder)
+  def set_buy_or_sell(self, buy_or_sell):
+    self.buy_or_sell = buy_or_sell
 
-	# TODO: need to customize the information to send to exchange
-	def sendOrder(self):
-		order = OuchClientMessages.EnterOrder(
-			order_token='{:014d}'.format(0).encode('ascii'),
-			buy_sell_indicator=b'B',
-			shares=1,
-			stock=b'AMAZGOOG',
-			price=10,
-			time_in_force=4,
-			firm=b'OUCH',
-			display=b'N',
-			capacity=b'O',
-			intermarket_sweep_eligibility=b'N',
-			minimum_quantity=1,
-			cross_type=b'N',
-			customer_type=b' ')
-		self.client.transport.write(bytes(order))
-		# remove if you dont want infinite loop
-		reactor.callLater(1, self.sendOrder)
+  def set_underlying_value(self, V):
+    self.V = V
 
+  def generateNextOrder(self):
+    Epsilon = 0.01    
+    waitingTime = -(1/self.lmbda)*math.log(rand.random()/self.lmbda)
+    return waitingTime, Epsilon, self.buy_or_sell
 
-	def handle_underlying_value(self, data):
-		c, V = struct.unpack('cf', data)
-		#print("Underlying Value Change: ", V)
+  # TODO: need to customize the information to send to exchange
+  def sendOrder(self, Epsilon, variable):
+    if(self.buy_or_sell == b'S'):
+      print("\nSELL\n")
+      price = self.V + Epsilon
+    if(self.buy_or_sell == b'B'):
+      print("\nBUY\n")
+      price = self.V - Epsilon
 
-	def handle_accepted_order(self, msg):
-		print("Accept Message from Exchange: ", msg)
-		# TODO: if order accepted... do something
+    order = OuchClientMessages.EnterOrder(
+      order_token='{:014d}'.format(0).encode('ascii'),
+      buy_sell_indicator=self.buy_or_sell,
+      shares=1,
+      stock=b'AMAZGOOG',
+      price=int(price * 10000),
+      time_in_force=4,
+      firm=b'OUCH',
+      display=b'N',
+      capacity=b'O',
+      intermarket_sweep_eligibility=b'N',
+      minimum_quantity=1,
+      cross_type=b'N',
+      customer_type=b' ')
+    self.client.transport.write(bytes(order))
+    # remove if you dont want infinite loop
+    # reactor.callLater(1, self.sendOrder)
+    waitingTime, Epsilon, self.buy_or_sell = self.generateNextOrder()
+    reactor.callLater(waitingTime, self.sendOrder, Epsilon, self.buy_or_sell)
 
-	def handle_executed_order(self, msg):
-		print("Executed Message from Exchange: ", msg)
-		# TODO: if order executed... do something
+  def handle_underlying_value(self, data):
+    c, V = struct.unpack('cf', data)
+    self.V = V
+    #print("Underlying Value Change: ", V)
 
+  def handle_accepted_order(self, msg):
+    print("Accept Message from Exchange: ", msg)
+    # TODO: if order accepted... do something
+    if(str(msg).find("S") != -1):
+      print("\nAccept: ask found\n")
+      self.ask_count += 1
+      if(self.ask_count >= 5): self.buy_or_sell = b'B'
+    elif(str(msg).find("B") != -1):
+      print("\nAccept: bid found\n")
+      self.bid_count += 1
+      if(self.bid_count >= 5): self.buy_or_sell = b'S'
 
-	def handle_cancelled_order(self, msg):
-		print("Cancelled Message: ", msg)
-		# TODO: if order cancelled... do something
+  def handle_executed_order(self, msg):
+    print("Executed Message from Exchange: ", msg)
+    # TODO: if order executed... do something
+    if(str(msg).find("S") != -1):
+      print("\nExecute: ask found\n")
+      self.ask_count -= 1
+      self.buy_or_sell = b'S'
+    elif(str(msg).find("B") != -1):
+      print("\nExecute: bid found\n")
+      self.buy_or_sell = b'B'
+      self.bid_count -= 1
+  
+  def handle_cancelled_order(self, msg):
+    print("Cancelled Message: ", msg)
+    # TODO: if order cancelled... do something
+    if(str(msg).find("S") != -1):
+      print("\nCancel: ask found\n")
+      self.ask_count -= 1
+      self.buy_or_sell = b'S'
+    elif(str(msg).find("B") != -1):
+      print("\nCancel: bid found\n")
+      self.buy_or_sell = b'B'
+      self.bid_count -= 1
+    
 
 
 class ExternalClient(Protocol):
-	def __init__(self, trader_class):
-		self.trader = trader_class(self)
+  def __init__(self, trader_class):
+    self.trader = trader_class(self)
 
-	def connectionMade(self):
-		print("client connected")
+  def connectionMade(self):
+    print("client connected")
 
-	def dataReceived(self, data):
-		# forward data to the trader, so they can handle it in different ways
-		ch = chr(data[0]).encode('ascii')
-		
-		# best bid best offer feed
-		if (ch == b'@'):
-			self.trader.handle_underlying_value(data)
-		else:
-			msg_type, msg = decodeServerOUCH(data) 
-			if msg_type == b'A':
-				self.trader.handle_accepted_order(msg)
-			elif msg_type == b'E':
-				self.trader.handle_executed_order(msg)
-			elif msg_type == b'C':
-				self.trader.handle_cancelled_order(msg)
-			else:
-				print("unhandled message type: ", data)
+  def dataReceived(self, data):
+    print("\nInside dataReceived:\n ", data)
+    # forward data to the trader, so they can handle it in different ways
+    ch = chr(data[0]).encode('ascii')
+    
+    # best bid best offer feed
+    if (ch == b'@'):
+      self.trader.handle_underlying_value(data)
+    else:
+      msg_type, msg = decodeServerOUCH(data) 
+      if msg_type == b'A':
+        self.trader.handle_accepted_order(msg)
+      elif msg_type == b'E':
+        self.trader.handle_executed_order(msg)
+      elif msg_type == b'C':
+        self.trader.handle_cancelled_order(msg)
+      else:
+        print("unhandled message type: ", data)
 
 # -----------------------
 # Main function
 # -----------------------
 def main():
-	externalClientFactory = ClientFactory()
-	def externalClient():
-		return ExternalClient(RandomTrader)
-	externalClientFactory.protocol = externalClient
-	reactor.connectTCP("localhost", 8000, externalClientFactory)
-	reactor.run()
+  externalClientFactory = ClientFactory()
+  def externalClient():
+    return ExternalClient(EpsilonTrader)
+  externalClientFactory.protocol = externalClient
+  reactor.connectTCP("localhost", 8000, externalClientFactory)
+  reactor.run()
 
 if __name__ == '__main__':
     main()
