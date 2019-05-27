@@ -6,6 +6,7 @@ import struct
 import numpy as np
 import random as rand
 import math
+from message_handler import decodeServerOUCH, decodeClientOUCH
 
 """
 Note on assumption:
@@ -63,9 +64,22 @@ class RandomTrader():
 		waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
 		reactor.callLater(waitingTime, self.sendOrder, priceDelta, buyOrSell)
 
+	def handle_underlying_value(self, data):
+		c, V = struct.unpack('cf', data)
+		self.set_underlying_value(V)
+
+	def handle_accepted_order(self, msg):
+		print("Accept Message from Exchange: ", msg)
+
+	def handle_executed_order(self, msg):
+		print("Executed Message from Exchange: ", msg)
+
+	def handle_cancelled_order(self, msg):
+		print("Cancelled Message: ", msg)
+
 class ExternalClient(Protocol):
-	def __init__(self):
-		self.trader = RandomTrader(self)
+	def __init__(self, trader_class):
+		self.trader = trader_class(self)
 
 	def connectionMade(self):
 		print("client connected")
@@ -73,18 +87,29 @@ class ExternalClient(Protocol):
 	def dataReceived(self, data):
 		# forward data to the trader, so they can handle it in different ways
 		ch = chr(data[0]).encode('ascii')
+		
+		# best bid best offer feed
 		if (ch == b'@'):
-			c, V = struct.unpack('cf', data)
-			self.trader.set_underlying_value(V)
+			self.trader.handle_underlying_value(data)
 		else:
-			print("unhandled message type")
+			msg_type, msg = decodeServerOUCH(data) 
+			if msg_type == b'A':
+				self.trader.handle_accepted_order(msg)
+			elif msg_type == b'E':
+				self.trader.handle_executed_order(msg)
+			elif msg_type == b'C':
+				self.trader.handle_cancelled_order(msg)
+			else:
+				print("unhandled message type: ", data)
 
 # -----------------------
 # Main function
 # -----------------------
 def main():
 	externalClientFactory = ClientFactory()
-	externalClientFactory.protocol = ExternalClient
+	def externalClient():
+		return ExternalClient(RandomTrader)
+	externalClientFactory.protocol = externalClient
 	reactor.connectTCP("localhost", 8000, externalClientFactory)
 	reactor.run()
 

@@ -16,10 +16,9 @@ class Client(Protocol):
             self.factory.graph.plot_enter_order(msg)
 
             client_id = self.factory.broker.clients.index(self)
-            order_token = self.factory.broker.get_order_token(client_id)
+            order_token = self.factory.broker.assign_order_token(client_id)
             msg['order_token'] = order_token
             self.factory.broker.exchange.transport.write(bytes(msg))
-
 
 # handles all data collection and graphing
 class ClientsGrapher():
@@ -79,4 +78,4 @@ class ClientsFactory(ServerFactory):
         plt.xlabel('Time')
         plt.ylabel('Price')
         plt.legend()
-        plt.show()
+        #plt.show()

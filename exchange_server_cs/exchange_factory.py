@@ -5,6 +5,7 @@ import time
 from collections import OrderedDict 
 import numpy as np
 import pickle
+from message_handler import decodeServerOUCH, decodeClientOUCH
 
 
 class Exchange(Protocol):
@@ -18,6 +19,7 @@ class Exchange(Protocol):
 			if msg_type == b'A':
 				#print('accepted: ', msg)
 				self.factory.graph.plot_accepted_order(msg)
+				self.factory.broker.return_to_client(data)
 
 			elif msg_type == b'E':
 				#print('executed: ', msg)
@@ -158,11 +160,11 @@ class ExchangeFactory(ClientFactory):
 		plt.xlabel('Time')
 		plt.ylabel('Price')
 		plt.legend()
-		plt.show()
+		#plt.show()
 
 		self.graph.graph_results_bbo()
 		plt.title("BBBO Activity (CDA)")
 		plt.xlabel('Time')
 		plt.ylabel('Price')
 		plt.legend()
-		plt.show()
+		#plt.show()
