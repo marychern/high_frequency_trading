@@ -14,7 +14,9 @@ if we want $100.30, this is represented as 10030
 """
 
 class RandomTrader():
-	def __init__(self, client, V = 100, lmbda=50, mean=0, std=0.2):
+	def __init__(self, client, V = 100, lmbda=50, mean=0, std=0.6):
+		rand.seed(1)
+		np.random.seed(2)
 		self.client = client
 
 		self.V = V
@@ -25,6 +27,7 @@ class RandomTrader():
 		waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
 		reactor.callLater(waitingTime, self.sendOrder, priceDelta, buyOrSell)
 
+
 	def set_underlying_value(self, V):
 		self.V = V
 
@@ -32,6 +35,7 @@ class RandomTrader():
 		waitingTime = -(1/self.lmbda)*math.log(rand.random()/self.lmbda)
 		priceDelta = np.random.normal(self.mean, self.std)
 		randomSeed = rand.random()
+
 		if (randomSeed > .5):
 			buyOrSell = b'B'
 		else:
@@ -40,7 +44,6 @@ class RandomTrader():
 
 	def sendOrder(self, priceDelta, buyOrSell):
 		price = self.V + priceDelta
-
 		order = OuchClientMessages.EnterOrder(
 			order_token='{:014d}'.format(0).encode('ascii'),
 			buy_sell_indicator=buyOrSell,
@@ -80,10 +83,10 @@ class ExternalClient(Protocol):
 # Main function
 # -----------------------
 def main():
-    externalClientFactory = ClientFactory()
-    externalClientFactory.protocol = ExternalClient
-    reactor.connectTCP("localhost", 8000, externalClientFactory)
-    reactor.run()
+	externalClientFactory = ClientFactory()
+	externalClientFactory.protocol = ExternalClient
+	reactor.connectTCP("localhost", 8000, externalClientFactory)
+	reactor.run()
 
 if __name__ == '__main__':
     main()

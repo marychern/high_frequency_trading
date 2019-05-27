@@ -33,6 +33,7 @@ class ClientsGrapher():
         self.sellStartTime = []
         self.sellEndTime = []
         self.sellPriceAxis = []
+        self.count = 0
 
     def plot_enter_order(self, msg):
         price = msg['price']
@@ -48,8 +49,8 @@ class ClientsGrapher():
             self.sellPriceAxis.append(price/10000)
 
     def graph_results(self):
-        plt.hlines(self.buyPriceAxis, self.buyStartTime, self.buyEndTime, color ="red", linewidth=0.5)
-        plt.hlines(self.sellPriceAxis, self.sellStartTime, self.sellEndTime, color ="blue", linewidth=0.5)
+        plt.hlines(self.buyPriceAxis, self.buyStartTime, self.buyEndTime, color ="red", linewidth=0.5, label="Bid")
+        plt.hlines(self.sellPriceAxis, self.sellStartTime, self.sellEndTime, color ="blue", linewidth=0.5, label="Offer")
 
         # dump to csv file
         with open('data_points.csv', mode='w') as data_file:
@@ -59,6 +60,7 @@ class ClientsGrapher():
             data_writer.writerow(["ORDERS FOR SELLERS"])
             data_writer.writerow(self.sellPriceAxis)
         data_file.close()
+        
 
 # persistent factory to handle all client connections
 class ClientsFactory(ServerFactory):
@@ -73,5 +75,8 @@ class ClientsFactory(ServerFactory):
         self.broker.end_time = self.broker.time()
         self.graph.graph_results()
         self.broker.underlyingValueFeed.graph_results(self.broker.end_time)
-        plt.title("Robot Order Activity")
+        plt.title("Traders and Fundamental Value")
+        plt.xlabel('Time')
+        plt.ylabel('Price')
+        plt.legend()
         plt.show()
