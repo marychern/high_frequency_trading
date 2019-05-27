@@ -115,6 +115,7 @@ class ExternalClient(Protocol):
     print("client connected")
 
   def dataReceived(self, data):
+    print("\nInside dataReceived:\n ", data)
     # forward data to the trader, so they can handle it in different ways
     ch = chr(data[0]).encode('ascii')
     
