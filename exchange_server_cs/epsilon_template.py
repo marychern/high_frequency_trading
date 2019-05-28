@@ -114,6 +114,16 @@ class EpsilonTrader():
 
 
 class ExternalClient(Protocol):
+  bytes_needed = {
+    'B': 10,
+    'S': 10,
+    'E': 40,
+    'C': 28,
+    'U': 80,
+    'A': 66,
+    'Q': 33,
+  }
+
   def __init__(self, trader_class):
     self.trader = trader_class(self)
 
@@ -121,23 +131,37 @@ class ExternalClient(Protocol):
     print("client connected")
 
   def dataReceived(self, data):
+
     print("\nInside dataReceived:\n ", data)
     # forward data to the trader, so they can handle it in different ways
     ch = chr(data[0]).encode('ascii')
-    
+    header = chr(data[0])
     # best bid best offer feed
+
     if (ch == b'@'):
-      self.trader.handle_underlying_value(data)
+        self.trader.handle_underlying_value(data)
     else:
-      msg_type, msg = decodeServerOUCH(data) 
-      if msg_type == b'A':
-        self.trader.handle_accepted_order(msg)
-      elif msg_type == b'E':
-        self.trader.handle_executed_order(msg)
-      elif msg_type == b'C':
-        self.trader.handle_cancelled_order(msg)
-      else:
-        print("unhandled message type: ", data)
+        try:
+          bytes_needed =  self.bytes_needed[header]
+        except KeyError:
+          print("Key error data: {}".format(data))
+          raise ValueError('unknown header %s.' % header)
+
+        if len(data) >= bytes_needed:
+            remainder = bytes_needed
+            more_data = data[remainder:]
+            data = data[:bytes_needed]
+        msg_type, msg = decodeServerOUCH(data)
+        if msg_type == b'A':
+           self.trader.handle_accepted_order(msg)
+        elif msg_type == b'E':
+           self.trader.handle_executed_order(msg)
+        elif msg_type == b'C':
+           self.trader.handle_cancelled_order(msg)
+        else:
+           print("unhandled message type: ", data)
+        if len(more_data):
+            self.dataReceived(more_data)
 
 # -----------------------
 # Main function
