@@ -15,6 +15,7 @@ import MakerTrader
 import EpsilonTrader
 =======
 from message_handler import decodeServerOUCH, decodeClientOUCH
+import yaml
 
 """
 Note on assumption:
@@ -22,16 +23,20 @@ The OUCH message expects price to be an integer. We think this means
 if we want $100.30, this is represented as 10030
 """
 
+
 class RandomTrader():
-	def __init__(self, client, V = 100, lmbda=50, mean=0, std=0.6):
+	def __init__(self, client):
 		rand.seed(1)
 		np.random.seed(2)
 		self.client = client
 
-		self.V = V
-		self.lmbda = lmbda
-		self.mean = mean
-		self.std = std
+		# initialize all the parameters for yaml
+		parametersDict = self.getYaml()['parameters']
+		keys = list(parametersDict.keys())
+		self.V = parametersDict[keys[0]]
+		self.lmbda = parametersDict[keys[1]]
+		self.mean = parametersDict[keys[2]]
+		self.std = parametersDict[keys[3]]
 
 		waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
 		reactor.callLater(waitingTime, self.sendOrder, priceDelta, buyOrSell)

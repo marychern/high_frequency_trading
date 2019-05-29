@@ -1,0 +1,5 @@
+parameters:
+    V: 100
+    lmbda: 1
+    mean: 0
+    std: .5

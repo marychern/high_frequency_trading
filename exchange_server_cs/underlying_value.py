@@ -9,6 +9,8 @@ from message_handler import decodeServerOUCH, decodeClientOUCH
 import time
 import csv
 import pickle
+import yaml
+import sys
 """
 ===== Underlying Value Feed =====
 
@@ -20,8 +22,9 @@ Note: All underlying value broadcasts will start with: @
 
 ==================================
 """
+
 class UnderlyingValue():
-    def __init__(self, time, clients, V=100, lmbda=1, mean=0, std=.5):
+    def __init__(self, time, clients):
         rand.seed(3)
         np.random.seed(4)
         # keep track of subscribers
@@ -30,16 +33,20 @@ class UnderlyingValue():
 
         # initialize constants for random number generators
         #self.T = 0
-        self.V = V
-        self.lmbda = lmbda
-        self.mean = mean
-        self.std = std
+
+        #initialize all the parameters for yaml
+        parametersDict = self.getYaml()['parameters']
+        keys = list(parametersDict.keys())
+        self.V = parametersDict[keys[0]]
+        self.lmbda = parametersDict[keys[1]]
+        self.mean = parametersDict[keys[2]]
+        self.std = parametersDict[keys[3]]
 
         # initialize graph for data visualization
         self.timeAxis = []
         self.valueAxis = []
         self.timeAxis.append(0)
-        self.valueAxis.append(V)
+        self.valueAxis.append(parametersDict[keys[0]])
 
         self.broadcast()
 
@@ -89,3 +96,14 @@ class UnderlyingValue():
             data_writer.writerow(self.valueAxis)
         data_file.close()
 
+    #returns the structure of the yaml file
+    #look at  https://github.com/marychern/high_frequency_trading/blob/yaml/exchange_server_116/yamlExample.py
+    #for more info
+    def getYaml(self):
+        yml_path = 'broker.yaml'
+        with open(yml_path, 'r') as f:
+            try:
+                configs = yaml.load(f)
+            except yaml.YAMLError as e:
+                raise e
+        return configs
