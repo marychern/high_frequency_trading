@@ -6,14 +6,12 @@ import struct
 import numpy as np
 import random as rand
 import math
-<<<<<<< HEAD
 import time
 
-#Traders
+# Traders
 import RandomTrader
 import MakerTrader
 import EpsilonTrader
-=======
 from message_handler import decodeServerOUCH, decodeClientOUCH
 import yaml
 
@@ -41,12 +39,11 @@ class RandomTrader():
 		waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
 		reactor.callLater(waitingTime, self.sendOrder, priceDelta, buyOrSell)
 
-
 	def set_underlying_value(self, V):
 		self.V = V
 
 	def generateNextOrder(self):
-		waitingTime = -(1/self.lmbda)*math.log(rand.random()/self.lmbda)
+		waitingTime = -(1 / self.lmbda) * math.log(rand.random() / self.lmbda)
 		priceDelta = np.random.normal(self.mean, self.std)
 		randomSeed = rand.random()
 
@@ -76,7 +73,6 @@ class RandomTrader():
 
 		waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
 		reactor.callLater(waitingTime, self.sendOrder, priceDelta, buyOrSell)
->>>>>>> 91583a3036c7f1dbd95defb6ea2b6ac9221e534a
 
 	def handle_underlying_value(self, data):
 		c, V = struct.unpack('cf', data)
@@ -91,70 +87,51 @@ class RandomTrader():
 	def handle_cancelled_order(self, msg):
 		print("Cancelled Message: ", msg)
 
+	def getYaml(self):
+		yml_path = 'external_clients.yaml'
+		with open(yml_path, 'r') as f:
+			try:
+				configs = yaml.load(f)
+			except yaml.YAMLError as e:
+				raise e
+		return configs
+
+
 class ExternalClient(Protocol):
-<<<<<<< HEAD
-  def __init__(self):
-    #specify trader
-    #self.trader = MakerTrader.MakerTrader(self)
-    self.trader = RandomTrader.RandomTrader(self)
-    #self.trader = EpsilonTrader.EpsilonTrader(self)
+	def __init__(self):
+		# specify trader
+		# self.trader = MakerTrader.MakerTrader(self)
+		self.trader = RandomTrader(self)
 
-  def connectionMade(self):
-    print("client connected")
-
-  def dataReceived(self, data):
-    # forward data to the trader, so they can handle it in different ways
-    time.sleep(0.3)
-    ch = chr(data[0]).encode('ascii')
-    if (ch == b'@'):
-      c, V = struct.unpack('cf', data)
-      self.trader.set_underlying_value(V)
-    else:
-      print("unhandled message type")
-=======
-	def __init__(self, trader_class):
-		self.trader = trader_class(self)
+	# self.trader = EpsilonTrader.EpsilonTrader(self)
 
 	def connectionMade(self):
 		print("client connected")
 
 	def dataReceived(self, data):
 		# forward data to the trader, so they can handle it in different ways
+		time.sleep(0.3)
 		ch = chr(data[0]).encode('ascii')
-		
-		# best bid best offer feed
 		if (ch == b'@'):
-			self.trader.handle_underlying_value(data)
+			c, V = struct.unpack('cf', data)
+			self.trader.set_underlying_value(V)
 		else:
-			msg_type, msg = decodeServerOUCH(data) 
-			if msg_type == b'A':
-				self.trader.handle_accepted_order(msg)
-			elif msg_type == b'E':
-				self.trader.handle_executed_order(msg)
-			elif msg_type == b'C':
-				self.trader.handle_cancelled_order(msg)
-			else:
-				print("unhandled message type: ", data)
->>>>>>> 91583a3036c7f1dbd95defb6ea2b6ac9221e534a
+			print("unhandled message type")
+
+
+
+
 
 # -----------------------
 # Main function
 # -----------------------
 def main():
-<<<<<<< HEAD
-    externalClientFactory = ClientFactory()
-    externalClientFactory.protocol = ExternalClient
-    reactor.connectTCP("localhost", 8000, externalClientFactory)
-    reactor.callLater(120, reactor.stop)
-    reactor.run()
-=======
 	externalClientFactory = ClientFactory()
-	def externalClient():
-		return ExternalClient(RandomTrader)
-	externalClientFactory.protocol = externalClient
+	externalClientFactory.protocol = ExternalClient
 	reactor.connectTCP("localhost", 8000, externalClientFactory)
+	reactor.callLater(120, reactor.stop)
 	reactor.run()
->>>>>>> 91583a3036c7f1dbd95defb6ea2b6ac9221e534a
+
 
 if __name__ == '__main__':
-    main()
+	main()
