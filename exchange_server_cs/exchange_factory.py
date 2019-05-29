@@ -18,13 +18,13 @@ class Exchange(Protocol):
       msg_type, msg = decodeServerOUCH(data) 
       if msg_type == b'A':
         #print('accepted: ', msg)
-        self.factory.graph.plot_accepted_order(msg)
         self.factory.broker.return_to_client(data)
+        self.factory.graph.plot_accepted_order(msg)
 
       elif msg_type == b'E':
         #print('executed: ', msg)
-        self.factory.graph.plot_executed_order(msg)
         self.factory.broker.return_to_client(data)
+        self.factory.graph.plot_executed_order(msg)
 
       # currently ignores cancelled, because these are 
       # just orders that ran out of time and no one matched
@@ -41,6 +41,8 @@ class Exchange(Protocol):
         print('System Event: ', msg)
       else:
         print('?: ', msg_type)
+      
+      self.factory.broker.return_to_client(data)
     except:
       print('EXCEPTION: message type', data)
 
@@ -169,4 +171,4 @@ class ExchangeFactory(ClientFactory):
     plt.xlabel('Time')
     plt.ylabel('Price')
     plt.legend()
-    #plt.show()
+    plt.show()
