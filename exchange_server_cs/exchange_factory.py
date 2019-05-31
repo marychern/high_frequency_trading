@@ -7,7 +7,8 @@ import numpy as np
 import pickle
 from message_handler import decodeServerOUCH, decodeClientOUCH
 
-cda_crossTime = pickle.load(open("output/cda_crossTime.pickle", "rb"))
+cda_crossPrice = pickle.load(open("crossPrice.pickle", "rb"))
+cda_crossTime = pickle.load(open("crossTime.pickle", "rb"))
 
 class Exchange(Protocol):
   def connectionMade(self):
@@ -159,10 +160,10 @@ class ExchangeFactory(ClientFactory):
     self.graph = ExchangeGrapher(self.broker.initial_time)
 
 
-  def fit(n):
-    return (n - cda_crossTime[0]) * 10
+  # def fit(n):
+  #   return (n - cda_crossTime[0]) * 10
 
-  cda_crossTime = list(map(fit, cda_crossTime))
+
 
   def stopFactory(self):
     self.graph.graph_results()
@@ -172,7 +173,16 @@ class ExchangeFactory(ClientFactory):
     plt.legend()
     #plt.show()
 
+
+    def fit(n):
+      return (n- cda_crossTime[0] * 10)
+
     self.graph.graph_results_bbo()
+    self.graph.crossTime = list(map(fit, cda_crossTime))
+
+    plt.hlines(cda_crossPrice[:-2], self.graph.crossTime[:-2], self.graph.crossTime[1:], linewidth=.7, color="orange", label="CDA")
+    plt.vlines(self.graph.crossTime[1:-1], cda_crossPrice, cda_crossPrice[1:], linewidth=.7, color="orange")
+
     plt.title("BBBO Activity (CDA)")
     plt.xlabel('Time')
     plt.ylabel('Price')
