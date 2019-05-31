@@ -2,6 +2,7 @@ from twisted.internet.protocol import Protocol, ServerFactory
 from message_handler import decodeClientOUCH
 import matplotlib.pyplot as plt
 import csv
+import time
 
 class Client(Protocol):
     # if a connection is made, add self to the broker

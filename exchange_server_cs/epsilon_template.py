@@ -130,15 +130,19 @@ class ExternalClient(Protocol):
     print("client connected")
 
   def dataReceived(self, data):
-
-    print("\nInside dataReceived:\n ", data)
     # forward data to the trader, so they can handle it in different ways
     ch = chr(data[0]).encode('ascii')
     header = chr(data[0])
     # best bid best offer feed
 
     if (ch == b'@'):
-        self.trader.handle_underlying_value(data)
+      print("@ data:", data)
+      c, V = struct.unpack('cf', data[:8])
+      print('V:', V)
+      self.trader.set_underlying_value(V)
+      if len(data) > 8:
+        # print("in more_messages, byte_length:", byte_length)
+        self.dataReceived(data[8:])
     else:
         try:
           bytes_needed =  self.bytes_needed[header]

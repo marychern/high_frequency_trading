@@ -7,6 +7,7 @@ import numpy as np
 import pickle
 from message_handler import decodeServerOUCH, decodeClientOUCH
 
+cda_crossTime = pickle.load(open("output/cda_crossTime.pickle", "rb"))
 
 class Exchange(Protocol):
   def connectionMade(self):
@@ -41,7 +42,6 @@ class Exchange(Protocol):
         print('System Event: ', msg)
       else:
         print('?: ', msg_type)
-      
       self.factory.broker.return_to_client(data)
     except:
       print('EXCEPTION: message type', data)
@@ -157,6 +157,12 @@ class ExchangeFactory(ClientFactory):
   def __init__(self, broker):
     self.broker = broker
     self.graph = ExchangeGrapher(self.broker.initial_time)
+
+
+  def fit(n):
+    return (n - cda_crossTime[0]) * 10
+
+  cda_crossTime = list(map(fit, cda_crossTime))
 
   def stopFactory(self):
     self.graph.graph_results()
