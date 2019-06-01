@@ -42,7 +42,6 @@ class Exchange(Protocol):
       else:
         print('?: ', msg_type)
       
-      self.factory.broker.return_to_client(data)
     except:
       print('EXCEPTION: message type', data)
 

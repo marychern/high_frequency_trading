@@ -35,17 +35,36 @@ class EpsilonTrader():
     waitingTime, Epsilon, BuyOrSell = self.generateNextOrder()
     reactor.callLater(waitingTime ,self.sendOrder, Epsilon, BuyOrSell)
 
-  def set_buy_or_sell(self, buy_or_sell):
-    self.buy_or_sell = buy_or_sell
-
   def set_underlying_value(self, V):
     if(self.V != V):
       self.first_time = True
       #cancel all orders when v changes
       cancelAllOrders(self)
+      first_move(self)
       
     self.V = V
     #cancel all orders when v changes
+    
+  def first_move(self):
+    buy_sell = [b'B', b'S']
+    for i in buy_sell:
+      self.tokens.append('{:014d}'.format(0).encode('ascii')) 
+      order = OuchClientMessages.EnterOrder(
+        order_token=self.tokens[self.token_idx],
+        buy_sell_indicator=i,
+        shares=5,
+        stock=b'AMAZGOOG',
+        price= self.V + 0.01 if(i == b'B') else self.V-0.01,
+        time_in_force=4,
+        firm=b'OUCH',
+        display=b'N',
+        capacity=b'O',
+        intermarket_sweep_eligibility=b'N',
+        minimum_quantity=1,
+        cross_type=b'N',
+        customer_type=b' ')
+      self.token_idx = self.token_idx + 1
+      self.client.transport.write(bytes(order))
     
 
   def generateNextOrder(self):
@@ -58,7 +77,10 @@ class EpsilonTrader():
       order = OuchClientMessage.CancelOrder(
         order_token = i,
         shares = 1)
+      (self.tokens).remove(i)
+    self.token_idx = 0
     self.client.transport.write(bytes(order))
+
   # TODO: need to customize the information to send to exchange
   def sendOrder(self, Epsilon, variable):
     if(self.buy_or_sell != None):
@@ -94,26 +116,6 @@ class EpsilonTrader():
     c, V = struct.unpack('cf', data)
     self.V = V
     #print("Underlying Value Change: ", V)
-
-  def handle_accepted_order(self, msg):
-    print("Accept Message from Exchange: ", msg)
-    increment_amt = 1
-    # TODO: if order accepted... do something
-    if(self.first_time == True):
-      self.num_shares = 5
-      increment_amt = 5
-    else: self.num_shares = 1
- 
-    if(str(msg).find("S") != -1):
-      print("\nAccept: ask found\n")
-      self.ask_count += increment_amt
-      if(self.ask_count >= 5 and self.bid_count < 5): self.buy_or_sell = b'B'
-      else: self.buy_or_sell = None
-    elif(str(msg).find("B") != -1):
-      print("\nAccept: bid found\n")
-      self.bid_count += increment_amt
-      if(self.bid_count >= 5 and self.ask_count < 5): self.buy_or_sell = b'S'
-      else: self.buy_or_sell = None
 
   def handle_executed_order(self, msg):
     print("Executed Message from Exchange: ", msg)
@@ -180,9 +182,7 @@ class ExternalClient(Protocol):
             data = data[:bytes_needed]
         msg_type, msg = decodeServerOUCH(data)
         print("\nMESSAGE:\n ", msg)
-        if msg_type == b'A':
-           self.trader.handle_accepted_order(msg)
-        elif msg_type == b'E':
+        if msg_type == b'E':
            self.trader.handle_executed_order(msg)
         elif msg_type == b'C':
            self.trader.handle_cancelled_order(msg)
