@@ -130,8 +130,8 @@ class ExchangeGrapher():
   def graph_results(self):
     plt.hlines(self.buyPriceAxis, self.buyStartTime, self.buyEndTime.values(), color ="red", linewidth=0.5, label="Bid")
     plt.hlines(self.sellPriceAxis, self.sellStartTime, self.sellEndTime.values(), color ="blue", linewidth=0.5, label="Offer")
-
     plt.scatter(self.crossTime, self.crossPrice, s=7, linewidth=1, marker = "x", label="Order Execution")
+
     pickle.dump(self.crossTime, open("crossTime.pickle", "wb"))
     pickle.dump(self.crossPrice, open("crossPrice.pickle", "wb"))
 
@@ -159,32 +159,18 @@ class ExchangeFactory(ClientFactory):
     self.broker = broker
     self.graph = ExchangeGrapher(self.broker.initial_time)
 
-
-  # def fit(n):
-  #   return (n - cda_crossTime[0]) * 10
-
-
-
   def stopFactory(self):
     self.graph.graph_results()
     plt.title("Exchange and Order Executions (FBA)")
     plt.xlabel('Time')
     plt.ylabel('Price')
     plt.legend()
-    #plt.show()
-
-
-    def fit(n):
-      return (n- cda_crossTime[0] * 10)
+    plt.show()
 
     self.graph.graph_results_bbo()
-    self.graph.crossTime = list(map(fit, cda_crossTime))
-
-    plt.hlines(cda_crossPrice[:-2], self.graph.crossTime[:-2], self.graph.crossTime[1:], linewidth=.7, color="orange", label="CDA")
-    plt.vlines(self.graph.crossTime[1:-1], cda_crossPrice, cda_crossPrice[1:], linewidth=.7, color="orange")
-
     plt.title("BBBO Activity (CDA)")
     plt.xlabel('Time')
     plt.ylabel('Price')
     plt.legend()
     plt.show()
+    

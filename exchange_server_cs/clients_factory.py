@@ -80,4 +80,4 @@ class ClientsFactory(ServerFactory):
         plt.xlabel('Time')
         plt.ylabel('Price')
         plt.legend()
-        #plt.show()
+        plt.show()
