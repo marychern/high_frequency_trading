@@ -42,7 +42,7 @@ class EpsilonTrader():
     if(self.V != V):
       self.first_time = True
       #cancel all orders when v changes
-      cancelAllOrders(self)
+      self.cancelAllOrders(self)
       
     self.V = V
     #cancel all orders when v changes
