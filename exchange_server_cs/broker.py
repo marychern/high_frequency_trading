@@ -5,12 +5,15 @@ from clients_factory import ClientsFactory
 from exchange_factory import ExchangeFactory
 from underlying_value import UnderlyingValue
 from message_handler import decodeServerOUCH, decodeClientOUCH
+import configargparse
 
-#configure broker
-#isMultipleMarkets = True
-Market1Port = 9001
-#Market2Port = 9002
-
+# this block of code allows us to do 'python broker.py --port 9001'
+p = configargparse.getArgParser()
+p.add('--port', default=12345, type=int)
+p.add('--client', default=12345, type=int)
+options, args = p.parse_known_args()
+MarketPort = options.port
+ClientPort = options.client
 
 """
 Broker Class:
@@ -55,9 +58,11 @@ class Broker():
 
 
 def main():
+  # global MarketPort
   broker = Broker()
-  reactor.listenTCP(8000, ClientsFactory(broker))
-  reactor.connectTCP("localhost", Market1Port, ExchangeFactory(broker))
+  reactor.listenTCP(ClientPort, ClientsFactory(broker))
+  reactor.connectTCP("localhost", MarketPort, ExchangeFactory(broker))
+
 #  if(isMultipleMarkets):
 #    reactor.listenTCP(8001, ClientsFactory(broker))
 #    reactor.connectTCP("localhost", Market2Port, ExchangeFactory(broker))
