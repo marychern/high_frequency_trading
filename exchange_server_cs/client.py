@@ -104,10 +104,10 @@ class Client(Protocol):
         random_val = random.randint(0, 2)
         if (ascii_header == b'#'):
             print("BB/BO: ", data)
-            for(i in data):
-              if(i == 'B' && bb != False):
+            for i in data:
+              if(i == 'B' and bb != False):
                 bb = True
-              if
+
             if self.counter < 30:
                 print("\nAbout to build another message in Maker")
                 self.factory.maker.build_Message(data)
@@ -159,7 +159,7 @@ class ClientConnectionFactory(ClientFactory):
 
     def buildProtocol(self, addr):
         self.connection = ClientFactory.buildProtocol(self, addr)
-        print("connection in client is:",self.connection)
+        print("In build Protocol! connection in client is:",self.connection)
         return self.connection
 
     def clientConnectionFailed(self, connector, reason):

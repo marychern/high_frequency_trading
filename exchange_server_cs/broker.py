@@ -67,7 +67,7 @@ def main():
 #    reactor.listenTCP(8001, ClientsFactory(broker))
 #    reactor.connectTCP("localhost", Market2Port, ExchangeFactory(broker))
 
-  reactor.callLater(60, reactor.stop)
+  # reactor.callLater(60, reactor.stop)
   reactor.run()
 
 if __name__ == '__main__':
