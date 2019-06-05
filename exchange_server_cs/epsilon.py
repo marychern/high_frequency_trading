@@ -39,8 +39,8 @@ class EpsilonTrader():
     if(self.V != V):
       self.first_time = True
       #cancel all orders when v changes
-      cancelAllOrders(self)
-      first_move(self)
+      self.cancelAllOrders()
+      self.first_move()
       
     self.V = V
     #cancel all orders when v changes
@@ -48,13 +48,15 @@ class EpsilonTrader():
   def first_move(self):
     buy_sell = [b'B', b'S']
     for i in buy_sell:
-      self.tokens.append('{:014d}'.format(0).encode('ascii')) 
-      order = OuchClientMessages.EnterOrder(
+      self.tokens.append('{:014d}'.format(0).encode('ascii'))
+      message_price = int(self.V + 0.01 if(i == b'B') else self.V-0.01)
+      message_type = OuchClientMessages.EnterOrder
+      order = message_type(
         order_token=self.tokens[self.token_idx],
         buy_sell_indicator=i,
         shares=5,
         stock=b'AMAZGOOG',
-        price= self.V + 0.01 if(i == b'B') else self.V-0.01,
+        price= message_price,
         time_in_force=4,
         firm=b'OUCH',
         display=b'N',
@@ -64,6 +66,7 @@ class EpsilonTrader():
         cross_type=b'N',
         customer_type=b' ')
       self.token_idx = self.token_idx + 1
+      print('-----------ORDER is:{}-------------------'.format(order))
       self.client.transport.write(bytes(order))
     
 
@@ -74,12 +77,12 @@ class EpsilonTrader():
 
   def cancelAllOrders(self):
     for i in self.tokens:
-      order = OuchClientMessage.CancelOrder(
+      order = OuchClientMessages.CancelOrder(
         order_token = i,
         shares = 1)
-      (self.tokens).remove(i)
-    self.token_idx = 0
-    self.client.transport.write(bytes(order))
+      self.tokens.remove(i)
+      self.token_idx = 0
+      self.client.transport.write(bytes(order))
 
   # TODO: need to customize the information to send to exchange
   def sendOrder(self, Epsilon, variable):
@@ -168,7 +171,15 @@ class ExternalClient(Protocol):
     # best bid best offer feed
 
     if (ch == b'@'):
-        self.trader.handle_underlying_value(data)
+      print("@ data:", data)
+      # we only take the first 8 bytes because  unpack only takes 8 bytes only
+      c, V = struct.unpack('cf', data[:8])
+      print('V:', V)
+      self.trader.set_underlying_value(V)
+      # if there is more to unpack just call this function again
+      if len(data) > 8:
+        # print("in more_messages, byte_length:",byte_length)
+        self.dataReceived(data[8:])
     else:
         try:
           bytes_needed =  self.bytes_needed[header]

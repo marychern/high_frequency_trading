@@ -6,6 +6,18 @@ import time
 
 class Client(Protocol):
     # if a connection is made, add self to the broker
+    bytes_needed = {
+        'B': 10,
+        'S': 10,
+        'E': 40,
+        'C': 28,
+        'U': 80,
+        'A': 66,
+        'Q': 33,
+        'O': 49,
+        'X': 19
+    }
+
     def connectionMade(self):
         self.factory.broker.clients.append(self)
 
@@ -13,14 +25,30 @@ class Client(Protocol):
     # get_order_token, logs this order to this client
     def dataReceived(self, data):
         print("\nDATA_RECIEVED IN CLIENT_FACTORY: \n", data)
-        msg_type, msg = decodeClientOUCH(data)
-        if msg_type == b'O':
-            self.factory.graph.plot_enter_order(msg)
+        header = chr(data[0])
+        try:
+            bytes_needed = self.bytes_needed[header]
+        except KeyError:
+            print('Key error data: {}'.format(data))
+            raise ValueError('unknown header %s.' % header)
+        print('len(data):{} bytes_needed:{} '.format(len(data), bytes_needed))
+        if len(data) >= bytes_needed:
+            remainder = bytes_needed
+            more_data = data[remainder:]
+            data = data[:bytes_needed]
+        if header != 'X':
+            msg_type, msg = decodeClientOUCH(data)
+            print("------------msg:", msg)
+            if msg_type == b'O':
+                self.factory.graph.plot_enter_order(msg)
 
-            client_id = self.factory.broker.clients.index(self)
-            order_token = self.factory.broker.assign_order_token(client_id)
-            msg['order_token'] = order_token
-            self.factory.broker.exchange.transport.write(bytes(msg))
+                client_id = self.factory.broker.clients.index(self)
+                order_token = self.factory.broker.assign_order_token(client_id)
+                msg['order_token'] = order_token
+                self.factory.broker.exchange.transport.write(bytes(msg))
+        if len(more_data):
+            self.dataReceived(more_data)
+
 
 # handles all data collection and graphing
 class ClientsGrapher():

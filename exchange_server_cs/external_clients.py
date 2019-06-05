@@ -69,6 +69,7 @@ class RandomTrader():
 			minimum_quantity=1,
 			cross_type=b'N',
 			customer_type=b' ')
+		print('---------------ORDER is:{}--------------'.format(order))
 		self.client.transport.write(bytes(order))
 
 		waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
