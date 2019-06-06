@@ -9,8 +9,8 @@ import configargparse
 
 # this block of code allows us to do 'python broker.py --port 9001'
 p = configargparse.getArgParser()
-p.add('--port', default=12345, type=int)
-p.add('--client', default=12345, type=int)
+p.add('--port', default=9001, type=int)
+p.add('--client', default=8000, type=int)
 options, args = p.parse_known_args()
 MarketPort = options.port
 ClientPort = options.client
