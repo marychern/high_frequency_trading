@@ -9,14 +9,22 @@ import math
 from message_handler import decodeServerOUCH, decodeClientOUCH
 
 class Sniper():
-	def __init__(self, client):
+  def __init__(self, client, V=100, lmbda = 50):
 		self.V = 0
+    self.lmbda = lmbda
 		self.marketConnect = None
-		self.marketConnect2 = None
-	#how would it do the listening of V?
+	  self.marketConnect2 = None
+	  #how would it do the listening of V?
     #import the same underlying value object?
     #listen to the underlying value feed of broker and then have a function that whenever it changes we send a message to sniper
 
+  def set_underlying_value(self, V):
+    self.V = V
+ 
+  def handle_underlying_value(self, data):
+    c, V = struct.unpack('cf', data)
+    self.V = V
+   
 class SniperClient(Protocol):
 	bytes_needed = {
 		'B': 10,
