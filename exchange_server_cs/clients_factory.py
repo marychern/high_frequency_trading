@@ -19,6 +19,7 @@ class Client(Protocol):
     }
 
     def connectionMade(self):
+        print('A client has connected!')
         self.factory.broker.clients.append(self)
 
     # if data received, plot it and then send to exchange
