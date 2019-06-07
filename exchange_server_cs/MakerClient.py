@@ -8,15 +8,22 @@ import random as rand
 import math
 from message_handler import decodeServerOUCH, decodeClientOUCH
 import yaml
+from inventory import Inventory
+#spread is BB - BO
+#need to get the BB and BO
+# from extracting the Q message
+
+#need to add order token to inventory's token list whenever we send another order
+#need to add it to actual inventory when receiving an executed message
+#need to sell that order to chicago after receiving from new york.
 
 counter = -1
 
 exchanges = ['NEW YORK', 'CHICAGO']
 
-
-class MultipleMarketClient:
+class Maker:
 	def __init__(self):
-		print('Initialized client!')
+		print('Initialized Maker!')
 
 		# initialize all the parameters for yaml
 		parametersDict = self.getYaml()['parameters']
@@ -25,8 +32,12 @@ class MultipleMarketClient:
 		self.lmbda = parametersDict[keys[1]]
 		self.mean = parametersDict[keys[2]]
 		self.std = parametersDict[keys[3]]
+
 		self.protocolOne = None
 		self.protocolTwo = None
+		self.spread = 0
+
+		self.inventory = Inventory(100000)
 
 	def set_underlying_value(self, V):
 		self.V = V
@@ -52,12 +63,20 @@ class MultipleMarketClient:
 				raise e
 		return configs
 
-	def sendOrder(self, priceDelta, buyOrSell, id):
+	def calcSpread(self, msg):
+		bestBid = msg['best_bid']
+		bestOffer = msg['best_ask']
+		print('BestBid:{} BestOffer:[}'.format(bestBid, bestOffer))
+		self.spread = bestBid - bestOffer
+		print('Spread:{}'.format(self.spread))
+
+	def sendOrder(self, buyOrSell, id):
 		print('Sending an order to {}'.format(exchanges[id]))
-		price = self.V + priceDelta
+		price = (self.V + self.spread)/2
+		order_token = '{:014d}'.format(0).encode('ascii')
 		order = OuchClientMessages.EnterOrder(
-			order_token='{:014d}'.format(0).encode('ascii'),
-			buy_sell_indicator=buyOrSell,
+			order_token=order_token,
+			buy_sell_indicator = buyOrSell,
 			shares=1,
 			stock=b'AMAZGOOG',
 			price=int(price * 10000),
@@ -73,12 +92,10 @@ class MultipleMarketClient:
 		if id == 0:
 			self.protocolOne.transport.write(bytes(order))
 			waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
-			reactor.callLater(waitingTime, self.sendOrder, priceDelta, buyOrSell, id)
+			reactor.callLater(waitingTime, self.sendOrder, buyOrSell, id)
 		else:
 			self.protocolTwo.transport.write(bytes(order))
 			print('Sent a message to {}!'.format(exchanges[id]))
-
-
 
 	def handle_underlying_value(self, data):
 		c, V = struct.unpack('cf', data)
@@ -93,7 +110,8 @@ class MultipleMarketClient:
 	def handle_cancelled_order(self, msg, id):
 		print("Cancelled Message from {}: {}".format(exchanges[id], msg))
 
-class MultipleMarket(Protocol):
+
+class MakerProtocol(Protocol):
 	bytes_needed = {
 		'B': 10,
 		'S': 10,
@@ -105,28 +123,24 @@ class MultipleMarket(Protocol):
 	}
 	def __init__(self):
 		global counter
-		print('initializing multiple market protocol!')
 		self.trader = None
 		counter += 1
 		self.id = counter
-		print('id initialized to:{}'.format(self.id))
+		print('Initialized Maker Protocol! id:{}'.format(self.id))
 
-	#connect the trader instance given to factory and create ids for two protocols aka exchanges
-	#to make more than 2 exchanges easily simply make a list attribute for exchanges in trader class
-	#id 0 = New York exchange and id 1 = Chicago
+
 	def connectionMade(self):
-		print("-------------MultipleMarketClient has connected!------------")
+		print('--------------Maker Protocol has connected--------------')
 		self.trader = self.factory.trader
 		if self.id == 0:
 			self.trader.protocolOne = self
 		elif self.id == 1:
 			self.trader.protocolTwo = self
-		wTime, pDelta, buySell = self.trader.generateNextOrder()
 		if self.id == 0:
-			self.trader.sendOrder(pDelta, buySell, self.id)
+			wTime, pDelta, buySell = self.trader.generateNextOrder()
+			self.trader.sendOrder(buySell, self.id)
 
-	#currently it is only listening to changes of underlying value from New York and
-	#immediately selling to Chicago
+
 	def dataReceived(self, data):
 		print('Received info from {} exchange'.format(exchanges[self.id]))
 		ch = chr(data[0]).encode('ascii')
@@ -140,8 +154,8 @@ class MultipleMarket(Protocol):
 				print('V:',V)
 				if self.trader.V != V:
 					print('Underlying Value Changed!')
-					waitTime, priceDelta, buyOrSell = self.trader.generateNextOrder()
-					self.trader.sendOrder(priceDelta, b'S', 1)
+					self.trader.sendOrder(b'S', 0)
+					self.trader.sendOrder(b'B', 0)
 				self.trader.set_underlying_value(V)
 			#if there is more to unpack or decode just call this function again
 			if len(data)>8:
@@ -170,27 +184,25 @@ class MultipleMarket(Protocol):
 				self.trader.handle_executed_order(msg, self.id)
 			elif msg_type == b'C':
 				self.trader.handle_cancelled_order(msg, self.id)
+			elif msg_type == b'Q': # this is the BB/BO message
+				self.trader.calcSpread(msg)
 			else:
 				print("unhandled message type: ", data)
 			if len(more_data):
 				self.dataReceived(more_data)
 
 
-class MultipleMarketFactory(ClientFactory):
-	protocol = MultipleMarket
+class MakerFactory(ClientFactory):
+	protocol = MakerProtocol
 	def __init__(self, trader):
 		self.trader = trader
 		print('Initialized factory!')
 
-
-
 def main():
-	multipleTrader = MultipleMarketClient()
-	print('Trader is  {}'.format(multipleTrader))
-	reactor.connectTCP("localhost", 8000, MultipleMarketFactory(multipleTrader))
-	reactor.connectTCP("localhost", 8001, MultipleMarketFactory(multipleTrader))
+	maker = Maker()
+	reactor.connectTCP("localhost", 8000, MakerFactory(maker))
+	reactor.connectTCP("localhost", 8001, MakerFactory(maker))
 	reactor.run()
-
 
 
 if __name__ == '__main__':
