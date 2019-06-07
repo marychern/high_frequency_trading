@@ -1,4 +1,4 @@
-from twisted.internet.protocol import ClientFactory, Protocol
+from twisted.internet.protocol import ClientFactory, Protocol, ServerFactory, Factory
 from twisted.internet import reactor
 from OuchServer.ouch_messages import OuchClientMessages
 from random import randrange
@@ -9,21 +9,12 @@ import math
 import time
 from message_handler import decodeServerOUCH, decodeClientOUCH
 import yaml
-import sys
+
+counter = 0
 
 
-##get connection from two running brokers
 
-##get the underlying values object of the two brokers for that stock and when it changes we will buy and sell
-#should i init the two factories inside multiple market client?
-#ok so clientfactory has custom protocols for each client and that makes sense
-#
-
-
-#so the idea is that the custom client factory will hold the two connections and probably underlying value
-#my protocol should hold my market client object and then it should do work from there
-#this creates a protocol and client for each connection so i gotta call client factory in the
-#client itself or protocol
+#so i have to pass broker into
 class MultipleMarketClient:
 	def __init__(self):
 		# self.client
@@ -35,32 +26,13 @@ class MultipleMarketClient:
 		self.lmbda = parametersDict[keys[1]]
 		self.mean = parametersDict[keys[2]]
 		self.std = parametersDict[keys[3]]
-
-
-		m = MultipleMarketFactory()
-		m.protocol = MultipleMarket
-
-		self.clientFactory = m
-		self.protocol = m.protocol
-		self.connectToBroker(self.clientFactory)
-
-
-		print('clientFactory:{}'.format(self.clientFactory))
-		print('protocol:{} '.format(self.protocol))
-
-		waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
-		reactor.callLater(waitingTime, self.sendOrder, priceDelta, buyOrSell)
+		self.protocolOne = None
+		self.protocolTwo = None
 
 
 
-
-
-
-	def connectToBroker(self, factory):
-		print('inside connectToBroker')
-		reactor.connectTCP('localhost', 8000, factory)
-		reactor.connectTCP('localhost', 8001, factory)
-		# print('market factory in connecTobroker {}'.format(self.clientFactory))
+	def set_underlying_value(self, V):
+		self.V = V
 
 
 	def generateNextOrder(self):
@@ -83,7 +55,8 @@ class MultipleMarketClient:
 				raise e
 		return configs
 
-	def sendOrder(self, priceDelta, buyOrSell):
+	def sendOrder(self, priceDelta, buyOrSell, id):
+		print('Protocol:{} is sending and Order!'.format(id))
 		price = self.V + priceDelta
 		order = OuchClientMessages.EnterOrder(
 			order_token='{:014d}'.format(0).encode('ascii'),
@@ -100,9 +73,26 @@ class MultipleMarketClient:
 			cross_type=b'N',
 			customer_type=b' ')
 		print('---------------ORDER is:{}--------------'.format(order))
+		if id == 1:
+			self.protocolOne.transport.write(bytes(order))
+		else:
+			self.protocolTwo.transport.write(bytes(order))
+		waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
+		reactor.callLater(waitingTime, self.sendOrder, priceDelta, buyOrSell, id)
 
-		self.clientFactory.marketOneConnection.transport.write(bytes(order))
 
+	def handle_underlying_value(self, data):
+		c, V = struct.unpack('cf', data)
+		self.set_underlying_value(V)
+
+	def handle_accepted_order(self, msg):
+		print("Accept Message from Exchange: ", msg)
+
+	def handle_executed_order(self, msg):
+		print("Executed Message from Exchange: ", msg)
+
+	def handle_cancelled_order(self, msg):
+		print("Cancelled Message: ", msg)
 
 class MultipleMarket(Protocol):
 	bytes_needed = {
@@ -115,17 +105,28 @@ class MultipleMarket(Protocol):
 		'Q': 33,
 	}
 	def __init__(self):
+		global counter
 		print('initializing multiple market protocol!')
-
-
+		self.trader = None
+		counter += 1
+		self.id = counter
+		print('id initialized to:{}'.format(self.id))
 
 	# why tf does connectionmade not run?!!??!
 	def connectionMade(self):
 		print("-------------MultipleMarketClient has connected!------------")
+		self.trader = self.factory.trader
+		print('In protocol init: Trader is  {}'.format(self.trader))
+		if self.id == 1:
+			self.trader.protocolOne = self
+		elif self.id == 2:
+			self.trader.protocolTwo = self
+		wTime, pDelta, buySell = self.trader.generateNextOrder()
+		self.trader.sendOrder(pDelta, buySell, self.id)
 
 	def dataReceived(self, data):
-		# forward data to the trader, so they can handle it in different ways
-		time.sleep(0.3)
+		# time.sleep(0.3)
+		print('id:{}'.format(self.id))
 		ch = chr(data[0]).encode('ascii')
 		header = chr(data[0])
 		if (ch == b'@'):
@@ -167,30 +168,17 @@ class MultipleMarket(Protocol):
 
 class MultipleMarketFactory(ClientFactory):
 	protocol = MultipleMarket
-	def __init__(self):
-		super()
-		self.marketOneConnection = None
-		self.marketTwoConnection = None
+	def __init__(self, trader):
+		self.trader = trader
 		print('initialized factory!')
-
-	def buildProtocol(self, addr):
-		print("inside buildProtocol! addr:{}".format(addr))
-		if self.marketOneConnection is None:
-			self.marketOneConnection = ClientFactory.buildProtocol(self, addr)
-			print('Inside buildprotocol, marketOneConnection:{}'.format(self.marketOneConnection))
-		else:
-			self.marketTwoConnection = ClientFactory.buildProtocol(self, addr)
-			print('Inside buildprotocol, marketTwoConnection:{}'.format(self.marketTwoConnection))
-
-	def getConnections(self):
-		return self.marketOneConnection, self.marketTwoConnection
-
-
 
 
 
 def main():
-	m = MultipleMarketClient()
+	multipleTrader = MultipleMarketClient()
+	print('Trader is  {}'.format(multipleTrader))
+	reactor.connectTCP("localhost", 8000, MultipleMarketFactory(multipleTrader))
+	reactor.connectTCP("localhost", 8001, MultipleMarketFactory(multipleTrader))
 	reactor.run()
 
 
