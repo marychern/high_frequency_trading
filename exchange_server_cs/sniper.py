@@ -13,9 +13,66 @@ class Sniper():
 		self.V = 0
 		self.marketConnect = None
 		self.marketConnect2 = None
-	#how would it do the listening of V?
+    self.buy_or_sell_market1 = b'B'
+    self.buy_or_sell_market2 = b'S'
+	  #how would it do the listening of V?
     #import the same underlying value object?
     #listen to the underlying value feed of broker and then have a function that whenever it changes we send a message to sniper
+
+  def set_underlying_value(self, V):
+    if(self.V != V):
+      if(self.V > V): 
+        self.buy_or_sell_market1 = b'B'
+        self.buy_or_sell_market2 = b'S'
+      else: #self.V < V
+        self.buy_or_sell_market1 = b'S'
+        self.buy_or_sell_market2 = b'B'
+    self.V = V
+
+  def handle_underlying_value(self, data):
+    c, V = struct.unpack('cf', data)
+    self.set_underlying_value(V)
+  
+  def sendOrder_Market1(self):
+    self.tokens.append('{:014d}'.format(0).encode('ascii')) 
+    order = OuchClientMessages.EnterOrder(
+      order_token=self.tokens[self.token_idx],
+      buy_sell_indicator=self.buy_or_sell_market1,
+      shares=1,
+      stock=b'AMAZGOOG',
+      price=int(self.V * 10000),
+      time_in_force=4,
+      firm=b'OUCH',
+      display=b'N',
+      capacity=b'O',
+      intermarket_sweep_eligibility=b'N',
+      minimum_quantity=1,
+      cross_type=b'N',
+      customer_type=b' ')
+    self.token_idx += 1
+    self.client.transport.write(bytes(order))
+    reactor.callLater(1, self.sendOrder_Market1)
+
+  def sendOrder_Market2(self):
+    self.tokens.append('{:014d}'.format(0).encode('ascii')) 
+    order = OuchClientMessages.EnterOrder(
+      order_token=self.tokens[self.token_idx],
+      buy_sell_indicator=self.buy_or_sell_market2,
+      shares=1,
+      stock=b'AMAZGOOG',
+      price=int(self.V * 10000),
+      time_in_force=4,
+      firm=b'OUCH',
+      display=b'N',
+      capacity=b'O',
+      intermarket_sweep_eligibility=b'N',
+      minimum_quantity=1,
+      cross_type=b'N',
+      customer_type=b' ')
+    self.token_idx += 1
+    self.client.transport.write(bytes(order))
+    reactor.callLater(1, self.sendOrder_Market2)
+  
 
 class SniperClient(Protocol):
 	bytes_needed = {
