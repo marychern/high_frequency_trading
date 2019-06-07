@@ -6,18 +6,19 @@ import struct
 import numpy as np
 import random as rand
 import math
+import time
 from message_handler import decodeServerOUCH, decodeClientOUCH
 import yaml
 
-counter = -1
-
-exchanges = ['NEW YORK', 'CHICAGO']
+counter = 0
 
 
+
+#so i have to pass broker into
 class MultipleMarketClient:
 	def __init__(self):
-		print('Initialized client!')
-
+		# self.client
+		print('initialized client!')
 		# initialize all the parameters for yaml
 		parametersDict = self.getYaml()['parameters']
 		keys = list(parametersDict.keys())
@@ -27,6 +28,8 @@ class MultipleMarketClient:
 		self.std = parametersDict[keys[3]]
 		self.protocolOne = None
 		self.protocolTwo = None
+
+
 
 	def set_underlying_value(self, V):
 		self.V = V
@@ -53,7 +56,7 @@ class MultipleMarketClient:
 		return configs
 
 	def sendOrder(self, priceDelta, buyOrSell, id):
-		print('Sending an order to {}'.format(exchanges[id]))
+		print('Protocol:{} is sending and Order!'.format(id))
 		price = self.V + priceDelta
 		order = OuchClientMessages.EnterOrder(
 			order_token='{:014d}'.format(0).encode('ascii'),
@@ -70,28 +73,26 @@ class MultipleMarketClient:
 			cross_type=b'N',
 			customer_type=b' ')
 		print('---------------ORDER is:{}--------------'.format(order))
-		if id == 0:
+		if id == 1:
 			self.protocolOne.transport.write(bytes(order))
-			waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
-			reactor.callLater(waitingTime, self.sendOrder, priceDelta, buyOrSell, id)
 		else:
 			self.protocolTwo.transport.write(bytes(order))
-			print('Sent a message to {}!'.format(exchanges[id]))
-
+		waitingTime, priceDelta, buyOrSell = self.generateNextOrder()
+		reactor.callLater(waitingTime, self.sendOrder, priceDelta, buyOrSell, id)
 
 
 	def handle_underlying_value(self, data):
 		c, V = struct.unpack('cf', data)
 		self.set_underlying_value(V)
 
-	def handle_accepted_order(self, msg, id):
-		print("Accept Message from {}: {}".format(exchanges[id], msg))
+	def handle_accepted_order(self, msg):
+		print("Accept Message from Exchange: ", msg)
 
-	def handle_executed_order(self, msg, id):
-		print("Executed Message from {}: {}".format(exchanges[id], msg))
+	def handle_executed_order(self, msg):
+		print("Executed Message from Exchange: ", msg)
 
-	def handle_cancelled_order(self, msg, id):
-		print("Cancelled Message from {}: {}".format(exchanges[id], msg))
+	def handle_cancelled_order(self, msg):
+		print("Cancelled Message: ", msg)
 
 class MultipleMarket(Protocol):
 	bytes_needed = {
@@ -111,52 +112,41 @@ class MultipleMarket(Protocol):
 		self.id = counter
 		print('id initialized to:{}'.format(self.id))
 
-	#connect the trader instance given to factory and create ids for two protocols aka exchanges
-	#to make more than 2 exchanges easily simply make a list attribute for exchanges in trader class
-	#id 0 = New York exchange and id 1 = Chicago
+	# why tf does connectionmade not run?!!??!
 	def connectionMade(self):
 		print("-------------MultipleMarketClient has connected!------------")
 		self.trader = self.factory.trader
-		if self.id == 0:
+		print('In protocol init: Trader is  {}'.format(self.trader))
+		if self.id == 1:
 			self.trader.protocolOne = self
-		elif self.id == 1:
+		elif self.id == 2:
 			self.trader.protocolTwo = self
 		wTime, pDelta, buySell = self.trader.generateNextOrder()
-		if self.id == 0:
-			self.trader.sendOrder(pDelta, buySell, self.id)
+		self.trader.sendOrder(pDelta, buySell, self.id)
 
-	#currently it is only listening to changes of underlying value from New York and
-	#immediately selling to Chicago
 	def dataReceived(self, data):
-		print('Received info from {} exchange'.format(exchanges[self.id]))
+		# time.sleep(0.3)
+		print('id:{}'.format(self.id))
 		ch = chr(data[0]).encode('ascii')
 		header = chr(data[0])
-		# check if broker sent back an underlying value change back
-		if ch == b'@':
-			if self.id == 0:
-				print("@ data:",data)
-				# we only take the first 8 bytes because  unpack only takes 8 bytes only
-				c, V = struct.unpack('cf', data[:8])
-				print('V:',V)
-				if self.trader.V != V:
-					print('Underlying Value Changed!')
-					waitTime, priceDelta, buyOrSell = self.trader.generateNextOrder()
-					self.trader.sendOrder(priceDelta, b'S', 1)
-				self.trader.set_underlying_value(V)
-			#if there is more to unpack or decode just call this function again
+		if (ch == b'@'):
+			print("@ data:",data)
+			# we only take the first 8 bytes because  unpack only takes 8 bytes only
+			c, V = struct.unpack('cf', data[:8])
+			print('V:',V)
+			self.trader.set_underlying_value(V)
+			#if there is more to unpack just call this function again
 			if len(data)>8:
+				# print("in more_messages, byte_length:",byte_length)
 				self.dataReceived(data[8:])
 		else:
-			#handles the message type being returned
+			#handle the messages returned
 			try:
 				bytes_needed = self.bytes_needed[header]
 			except KeyError:
 				print("Key error data: {}".format(data))
 				raise ValueError('unknown header %s.' % header)
-			#splits the data received into bytes based on the header
-			#the remainder of the data is to be handled recursively
-			#We need to do this because some times the exchange sends huge chunks
-			#of data in the byte stream and our decoder needs the data in identifiable chunks
+
 			if len(data) >= bytes_needed:
 				remainder = bytes_needed
 				more_data = data[remainder:]
@@ -165,11 +155,11 @@ class MultipleMarket(Protocol):
 			msg_type, msg = decodeServerOUCH(data)
 			print("msg:",msg)
 			if msg_type == b'A':
-				self.trader.handle_accepted_order(msg, self.id)
+				self.trader.handle_accepted_order(msg)
 			elif msg_type == b'E':
-				self.trader.handle_executed_order(msg, self.id)
+				self.trader.handle_executed_order(msg)
 			elif msg_type == b'C':
-				self.trader.handle_cancelled_order(msg, self.id)
+				self.trader.handle_cancelled_order(msg)
 			else:
 				print("unhandled message type: ", data)
 			if len(more_data):
@@ -180,7 +170,7 @@ class MultipleMarketFactory(ClientFactory):
 	protocol = MultipleMarket
 	def __init__(self, trader):
 		self.trader = trader
-		print('Initialized factory!')
+		print('initialized factory!')
 
 
 
