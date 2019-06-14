@@ -16,6 +16,7 @@ class Exchange(Protocol):
     print("exchange connected")
 
   def dataReceived(self, data):
+    print("\nInside dataRecieved of Exchange Factory!\n")
     try:
       msg_type, msg = decodeServerOUCH(data) 
       if msg_type == b'A':
