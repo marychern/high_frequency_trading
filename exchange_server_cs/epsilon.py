@@ -26,7 +26,7 @@ class EpsilonTrader():
     self.bid_count = 0
     self.tokens = []
     self.token_idx = 0
-
+    self.format_value = 0
     # send a template order every second
     # note: have to use callLater, because of async issues
     # if first parameter is 0, wait 0 seconds to send order
@@ -39,7 +39,6 @@ class EpsilonTrader():
     waitingTime = -(1/self.lmbda)*math.log(rand.random()/self.lmbda)
     return waitingTime, Epsilon
 
-
   # TODO: need to customize the information to send to exchange
   def sendOrder(self, Epsilon):
     if(self.buy_or_sell != None):
@@ -49,7 +48,8 @@ class EpsilonTrader():
       if(self.buy_or_sell == b'B'):
         print("\nBUY\n")
         price = self.V - Epsilon
-      self.tokens.append('{:014d}'.format(0).encode('ascii')) 
+      self.tokens.append('{:014d}'.format(self.format_value).encode('ascii'))
+      self.format_value += 1
       order = OuchClientMessages.EnterOrder(
         order_token=self.tokens[self.token_idx],
         buy_sell_indicator=self.buy_or_sell,
@@ -66,27 +66,38 @@ class EpsilonTrader():
         customer_type=b' ')
       self.token_idx += 1
       self.client.transport.write(bytes(order))
+
+      #waitingTime, Epsilon = self.generateNextOrder()
+      #reactor.callLater(waitingTime, self.sendOrder, Epsilon)
     else:
+      print("\nBUY_OR_SELL = NONE; NOT SENDING ANY ORDER\n")
       self.set_buy_or_sell()
     #remove if you dont want infinite loop
     waitingTime, Epsilon = self.generateNextOrder()
-    #reactor.callLater(1, self.sendOrder)
+    #--reactor.callLater(1, self.sendOrder)
     reactor.callLater(waitingTime, self.sendOrder, Epsilon)
 
   def set_underlying_value(self, V):
     if(self.V != V):
-      self.cancel_all_orders()   
-    self.V = V
+      self.V = V
+      self.cancel_all_orders()
+    else:
+      print("\n*********************************************************************")
+      print("\n* WARNING: FUNDAMENTAL VALUE DID NOT CHANGE (SHOULD NEVER BE CALLED)*")
+      print("\n* WARNING: FUNDAMENTAL VALUE DID NOT CHANGE (SHOULD NEVER BE CALLED)*")
+      print("\n*********************************************************************\n")
 
   def handle_underlying_value(self, data):
     c, V = struct.unpack('cf', data)
     self.set_underlying_value(V)
 
   def cancel_all_orders(self):
+    self.format_value = 0
     self.token_idx = 0
     self.bid_count = 0
     self.ask_count = 0
     for i in self.tokens:
+      print("\nCANCELING MESSAGE WITH TOKEN: \n", i)
       order = OuchClientMessages.CancelOrder(
         order_token = i,
         shares = 1)
@@ -94,9 +105,9 @@ class EpsilonTrader():
       self.client.transport.write(bytes(order))
 
   def set_buy_or_sell(self):
-    if(self.ask_count > 5 and self.bid_count > 5): self.buy_or_sell = None
-    elif(self.ask_count > 5 and self.bid_count <= 5): self.buy_or_sell = b'B'
-    elif(self.ask_count <= 5 and self.bid_count > 5): self.buy_or_sell = b'S'
+    if(self.ask_count >= 5 and self.bid_count >= 5): self.buy_or_sell = None
+    elif(self.ask_count >= 5 and self.bid_count < 5): self.buy_or_sell = b'B'
+    elif(self.ask_count < 5 and self.bid_count >= 5): self.buy_or_sell = b'S'
     else:
       if(self.buy_or_sell == None): self.buy_or_sell = b'B'
 
@@ -108,7 +119,18 @@ class EpsilonTrader():
       self.bid_count += 1
       self.set_buy_or_sell()
 
-  def handle_execute_or_cancel_order(self, msg):
+  def handle_cancel_order(self, msg):
+    if(self.ask_count > 0 or self.bid_count > 0):
+      if(str(msg).find("S") != -1):
+        self.buy_or_sell = b'S'
+        self.ask_count -= 1
+      elif(str(msg).find("B") != -1):
+        self.buy_or_sell = b'B'
+        self.bid_count -= 1
+    else:
+      print("\nIn the middle of canceling all orders\n")
+
+  def handle_execute_order(self, msg):
     if(str(msg).find("S") != -1):
       self.buy_or_sell = b'S'
       self.ask_count -= 1
@@ -169,10 +191,10 @@ class ExternalClient(Protocol):
            self.trader.handle_accept_order(msg)
         if msg_type == b'E':
            print("Executed Message from Exchange: ", msg)
-           self.trader.handle_execute_or_cancel_order(msg)
+           self.trader.handle_execute_order(msg)
         elif msg_type == b'C':
            print("Canceled Message from Exchange: ", msg)
-           self.trader.handle_execute_or_cancel_order(msg)
+           self.trader.handle_cancel_order(msg)
         else:
            print("unhandled message type: ", data)
         if len(more_data):

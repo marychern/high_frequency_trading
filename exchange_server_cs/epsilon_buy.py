@@ -21,6 +21,7 @@ class EpsilonTrader():
     self.client = client
     self.V = V
     self.lmbda = lmbda
+    self.shares = 5
     self.buy_or_sell = b'B'
     self.ask_count = 0
     self.bid_count = 0
@@ -43,26 +44,27 @@ class EpsilonTrader():
 
   # TODO: need to customize the information to send to exchange
   def sendOrder(self, Epsilon):
-      price = self.V - Epsilon
+      if(self.bid_count <= 5):
+        price = self.V - Epsilon
       
-      order = OuchClientMessages.EnterOrder(
-        order_token=self.token[0],
-        buy_sell_indicator=self.buy_or_sell,
-        shares=5,
-        stock=b'AMAZGOOG',
-        price=int(price * 10000),
-        time_in_force=4,
-        firm=b'OUCH',
-        display=b'N',
-        capacity=b'O',
-        intermarket_sweep_eligibility=b'N',
-        minimum_quantity=1,
-        cross_type=b'N',
-        customer_type=b' ')
-      self.client.transport.write(bytes(order))
-
-      waitingTime, Epsilon = self.generateNextOrder()
-      reactor.callLater(waitingTime, self.sendOrder, Epsilon)
+        order = OuchClientMessages.EnterOrder(
+          order_token=self.token[0],
+          buy_sell_indicator=self.buy_or_sell,
+          shares=self.shares,
+          stock=b'AMAZGOOG',
+          price=int(price * 10000),
+          time_in_force=4,
+          firm=b'OUCH',
+          display=b'N',
+          capacity=b'O',
+          intermarket_sweep_eligibility=b'N',
+          minimum_quantity=1,
+          cross_type=b'N',
+          customer_type=b' ')
+        self.client.transport.write(bytes(order))
+        waitingTime, Epsilon = self.generateNextOrder()
+        reactor.callLater(waitingTime, self.sendOrder, Epsilon)
+    
 
   def set_underlying_value(self, V):
     self.cancel_all_orders()   
@@ -76,6 +78,7 @@ class EpsilonTrader():
     print("\nCancelling all orders!!\n")
     self.bid_count = 0
     self.ask_count = 0
+    self.shares = 5
     order = OuchClientMessages.CancelOrder(
       order_token = self.token[0],
       shares = 1)
@@ -85,13 +88,14 @@ class EpsilonTrader():
   def handle_accept_order(self, msg):
     if(self.bid_count <= 5):
       if(str(msg).find("B") != -1):
-        self.bid_count += 1
+        self.bid_count += self.shares
 
   def handle_execute_or_cancel_order(self, msg):
     if(str(msg).find("B") != -1):
       self.buy_or_sell = b'B'
-
+      
       if(self.bid_count > 0):
+        self.shares = 1
         self.bid_count -= 1
 
 class ExternalClient(Protocol):
